@@ -74,15 +74,13 @@ async function rateLimit(request: Request, env: Env, bucket: string, max: number
   const key = hex(await sha256(new TextEncoder().encode(source + ":" + bucket)));
   const window = new Date(Math.floor(Date.now() / 60_000) * 60_000).toISOString();
   const row = await env.DB.prepare(
-    "SELECT request_count FROM api_rate_limits WHERE bucket_key = ? AND window_start = ?"
-  ).bind(key, window).first<{ request_count: number }>();
-  if ((row?.request_count ?? 0) >= max) return false;
-  await env.DB.prepare(
     `INSERT INTO api_rate_limits (bucket_key, window_start, request_count)
      VALUES (?, ?, 1)
-     ON CONFLICT(bucket_key, window_start) DO UPDATE SET request_count = request_count + 1`
-  ).bind(key, window).run();
-  return true;
+     ON CONFLICT(bucket_key, window_start) DO UPDATE SET request_count = request_count + 1
+     WHERE request_count < ?
+     RETURNING request_count`
+  ).bind(key, window, max).first<{ request_count: number }>();
+  return row !== null;
 }
 
 async function createActivation(request: Request, env: Env, headers: HeadersInit): Promise<Response> {
