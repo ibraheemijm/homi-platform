@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
 type Release = {
   id: string;
@@ -159,7 +160,7 @@ export default function ReleaseManager({ onError, onNotice }: Props) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const create = async (event: React.FormEvent<HTMLFormElement>) => {
+  const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     try {
@@ -215,13 +216,13 @@ export default function ReleaseManager({ onError, onNotice }: Props) {
   };
 
   return (
-    <section className="panel release-manager">
+    <section id="releases" className="panel release-manager">
       <div className="panel-heading">
         <div><h2>إدارة إصدارات Homi Grocery</h2><p>أنشئ مسودة، ارفع الحزم وراجعها، ثم انشرها في كتالوج الموقع.</p></div>
         <button className="button secondary" onClick={() => void load()} disabled={loading}>تحديث</button>
       </div>
       <form className="release-create-form" onSubmit={create}>
-        <label>رقم الإصدار<input required pattern="[0-9]+\\.[0-9]+\\.[0-9]+([+-][A-Za-z0-9.-]+)?" placeholder="1.0.0" value={version} onChange={(event) => setVersion(event.target.value)} /></label>
+        <label>رقم الإصدار<input required pattern="[0-9]+\.[0-9]+\.[0-9]+([+-][A-Za-z0-9.-]+)?" placeholder="1.0.0" value={version} onChange={(event) => setVersion(event.target.value)} /></label>
         <label>رقم البناء<input required maxLength={40} value={buildNumber} onChange={(event) => setBuildNumber(event.target.value)} placeholder="100" /></label>
         <label>قناة الإصدار<select value={channel} onChange={(event) => setChannel(event.target.value as Release["channel"])}><option value="stable">مستقر</option><option value="beta">تجريبي</option><option value="internal">داخلي</option></select></label>
         <label className="full-span">ملاحظات الإصدار بالعربية<textarea maxLength={4000} value={notesAr} onChange={(event) => setNotesAr(event.target.value)} rows={2} /></label>
