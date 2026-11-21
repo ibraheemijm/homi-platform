@@ -189,3 +189,25 @@ homi-grocery
 ```
 
 يمكن للعميل متابعة الطلب باستخدام مسار الحالة السابق، وتنزيل غلاف `.hlic` بعد الإصدار.
+
+
+## إرسال إثبات الدفع اليدوي
+
+`POST /public/activation-requests/{id}/payment-submissions` — `multipart/form-data`.
+
+الحقول:
+- `method`: `cash` أو `bank_transfer` أو `other`.
+- `amount_minor`: عدد صحيح موجب، يطابق المبلغ الذي اتفق عليه العميل مع الإدارة.
+- `currency`: رمز عملة من ثلاثة أحرف.
+- `reference_note`: مرجع اختياري.
+- `proof`: صورة JPG/PNG/WEBP أو PDF بحد أقصى 8 MiB. مطلوب للتحويل البنكي.
+
+تسجل المنصة الطلب بحالة `pending_review`، وتحفظ الإيصال الخاص في R2. لا يفعّل الاشتراك عند الرفع.
+
+واجهات الإدارة:
+- `GET /admin/payment-submissions`: تتطلب `payments.read`.
+- `GET /admin/payment-submissions/{id}/proof`: عرض خاص للإيصال بعد التحقق من الصلاحية.
+- `POST /admin/payment-submissions/{id}/confirm`: تأكيد استلام المبلغ، ويتطلب `payments.confirm`.
+- `POST /admin/payment-submissions/{id}/reject`: رفض الإثبات مع ملاحظة مراجعة اختيارية.
+
+لا يصدر الترخيص باستخدام إثبات مرفوع إلا بعد أن تصبح حالته `confirmed`. يربط سجل الدفع النهائي بمعرف الإثبات لمنع إعادة استخدامه في ترخيص آخر. ويظل بإمكان الإدارة تسجيل دفعة مباشرة عند استلامها يدويًا دون رفع إيصال عبر الموقع.
