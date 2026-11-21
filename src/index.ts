@@ -312,7 +312,7 @@ export default {
       return json({ items: rows.results ?? [] }, 200, headers);
     }
 
-    const reviewMatch = path.match(/^\\/admin\\/activation-requests\\/([^/]+)\\/review$/);
+    const reviewMatch = path.match(/^\/admin\/activation-requests\/([^/]+)\/review$/);
     if (request.method === "POST" && reviewMatch) {
       const auth = await authenticateAdmin(request, env, ["activation_requests.review"]);
       if (auth.response) return withHeaders(auth.response, headers);
@@ -333,7 +333,7 @@ export default {
       return json({ activation_request_id: requestId, status: "under_review" }, 200, headers);
     }
 
-    const approveMatch = path.match(/^\\/admin\\/activation-requests\\/([^/]+)\\/approve$/);
+    const approveMatch = path.match(/^\/admin\/activation-requests\/([^/]+)\/approve$/);
     if (request.method === "POST" && approveMatch) {
       const auth = await authenticateAdmin(request, env, [
         "activation_requests.review", "payments.confirm", "subscriptions.manage", "licenses.issue",
