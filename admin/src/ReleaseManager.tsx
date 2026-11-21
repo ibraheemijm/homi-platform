@@ -71,7 +71,7 @@ function ReleaseUploader({ release, onDone, onError }: {
   onError: (message: string) => void;
 }) {
   const [platform, setPlatform] = useState("android");
-  const [architecture, setArchitecture] = useState("arm64-v8a");
+  const [architecture, setArchitecture] = useState("universal");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
 
@@ -139,7 +139,7 @@ function ReleaseUploader({ release, onDone, onError }: {
     <div className="release-upload">
       <select value={platform} onChange={(event) => {
         setPlatform(event.target.value);
-        setArchitecture(event.target.value === "android" ? "arm64-v8a" : "x64");
+        setArchitecture(event.target.value === "android" ? "universal" : "x64");
       }} disabled={busy} aria-label="منصة الحزمة">
         <option value="android">Android</option>
         <option value="windows">Windows</option>
