@@ -173,7 +173,7 @@ export async function importHreq(request: Request, env: Env): Promise<Response> 
   const now = new Date().toISOString();
   const challenge = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
   const challengeExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-  const fileKey = `activation-requests/${requestId}/${fileHash}.hreq`;
+  const fileKey = `activation-requests/${requestId}/${fileHash}-${crypto.randomUUID()}.hreq`;
   await env.FILES.put(fileKey, fileBytes, {
     httpMetadata: { contentType: "application/vnd.homi.activation-request+json" },
     customMetadata: { requestId, productKey: "homi-grocery", sha256: fileHash },
