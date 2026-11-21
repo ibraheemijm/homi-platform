@@ -425,7 +425,13 @@ export default {
       const rows = await env.DB.prepare(
         `SELECT ar.id, ar.status, ar.platform_key, ar.architecture_key, ar.device_label,
                 ar.key_fingerprint, ar.customer_name_snapshot, ar.customer_phone_snapshot,
-                ar.requested_plan, ar.source, ar.created_at, ar.proof_verified_at
+                ar.requested_plan, ar.source, ar.created_at, ar.proof_verified_at,
+                (SELECT ps.id FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_submission_id,
+                (SELECT ps.status FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_status,
+                (SELECT ps.method FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_method,
+                (SELECT ps.amount_minor FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_amount_minor,
+                (SELECT ps.currency FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_currency,
+                (SELECT CASE WHEN ps.proof_object_key IS NOT NULL THEN 1 ELSE 0 END FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS has_payment_proof
          FROM activation_requests ar
          WHERE (? IS NULL OR ar.status = ?)
          ORDER BY ar.created_at DESC LIMIT ?`
