@@ -3,7 +3,6 @@ import { authenticateAdmin } from "../security/access";
 import { encodePayloadBase64, signLicensePayload } from "../licensing/signer";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PLAN_DAYS: Record<string, number> = { monthly: 30, annual: 365 };
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status, headers: { "cache-control": "no-store" } });
@@ -238,12 +237,14 @@ export async function handleCustomerAdmin(
       ).bind(licenseId,row.device_id,signed.keyId,payloadB64,signed.signatureB64,now,startsAt,endsAt,requestId,now,subscriptionId,now),
       env.DB.prepare(
         `UPDATE devices SET customer_id = ?, status = 'active', updated_at = ?
-         WHERE id = ? AND (customer_id IS NULL OR customer_id = ?)`
-      ).bind(row.customer_id,now,row.device_id,row.customer_id),
+         WHERE id = ? AND (customer_id IS NULL OR customer_id = ?)
+           AND EXISTS (SELECT 1 FROM licenses WHERE id = ?)`
+      ).bind(row.customer_id,now,row.device_id,row.customer_id,licenseId),
       env.DB.prepare(
         `UPDATE activation_requests SET customer_id = ?, status = 'approved', updated_at = ?
-         WHERE id = ? AND status IN ('proof_verified','under_review')`
-      ).bind(row.customer_id,now,requestId),
+         WHERE id = ? AND status IN ('proof_verified','under_review')
+           AND EXISTS (SELECT 1 FROM licenses WHERE id = ?)`
+      ).bind(row.customer_id,now,requestId,licenseId),
       env.DB.prepare(
         `INSERT INTO audit_logs (id,actor_admin_id,action_key,entity_type,entity_id,after_json,request_id,created_at)
          SELECT ?,?,'subscription.device_assigned','license',?,?,?,?
@@ -282,8 +283,14 @@ export async function handleCustomerAdmin(
     const results = await env.DB.batch([
       env.DB.prepare("UPDATE subscriptions SET status = ?, updated_at = ? WHERE id = ? AND status = ?")
         .bind(next,now,subscriptionId,current.status),
-      env.DB.prepare("UPDATE licenses SET status = ? WHERE subscription_id = ? AND status = ?")
-        .bind(action === "suspend" ? "suspended" : "active",subscriptionId,action === "suspend" ? "active" : "suspended"),
+      env.DB.prepare(
+        `UPDATE licenses SET status = ?
+         WHERE subscription_id = ? AND status = ?
+           AND ( ? = 'suspend' OR EXISTS (
+             SELECT 1 FROM devices d WHERE d.id = licenses.device_id AND d.status = 'active'
+           ))`
+      ).bind(action === "suspend" ? "suspended" : "active",subscriptionId,
+        action === "suspend" ? "active" : "suspended",action),
       env.DB.prepare(
         `INSERT INTO audit_logs (id,actor_admin_id,action_key,entity_type,entity_id,before_json,after_json,created_at)
          VALUES (?, ?, ?, 'subscription', ?, ?, ?, ?)`
@@ -314,12 +321,16 @@ export async function handleCustomerAdmin(
         .bind(next,now,deviceId,current.status),
       env.DB.prepare(
         `UPDATE licenses SET status = ?
-         WHERE device_id = ? AND status = ?
-           AND (subscription_id IS NULL OR EXISTS (
-             SELECT 1 FROM subscriptions s WHERE s.id = licenses.subscription_id
-               AND s.status = 'active' AND (s.ends_at IS NULL OR s.ends_at > ?)
-           ))`
-      ).bind(licenseStatus,deviceId,action === "suspend" ? "active" : action === "reactivate" ? "suspended" : "active",now),
+         WHERE device_id = ? AND (
+           (? = 'revoke' AND status IN ('active','suspended'))
+           OR (? = 'suspend' AND status = 'active')
+           OR (? = 'reactivate' AND status = 'suspended'
+             AND (subscription_id IS NULL OR EXISTS (
+               SELECT 1 FROM subscriptions s WHERE s.id = licenses.subscription_id
+                 AND s.status = 'active' AND (s.ends_at IS NULL OR s.ends_at > ?)
+             )))
+         )`
+      ).bind(licenseStatus,deviceId,action,action,action,now),
       env.DB.prepare(
         `INSERT INTO audit_logs (id,actor_admin_id,action_key,entity_type,entity_id,before_json,after_json,created_at)
          VALUES (?, ?, ?, 'device', ?, ?, ?, ?)`
