@@ -24,25 +24,25 @@
 /* إدارة إصدارات التطبيقات */
 .nav-item{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
 .release-manager{margin-top:22px}
-.release-create-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px 0;border-bottom:1px solid var(--line)}
-.release-create-form label{display:flex;flex-direction:column;gap:6px;font-size:.78rem;font-weight:700;color:var(--muted)}
-.release-create-form input,.release-create-form select,.release-create-form textarea,.release-upload input:not([type=file]),.release-upload select{width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--paper);color:var(--ink);font:inherit}
+.release-create-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px 0;border-bottom:1px solid #e5e7df}
+.release-create-form label{display:flex;flex-direction:column;gap:6px;font-size:.78rem;font-weight:700;color:#78867d}
+.release-create-form input,.release-create-form select,.release-create-form textarea,.release-upload input:not([type=file]),.release-upload select{width:100%;min-width:0;border:1px solid #e5e7df;border-radius:10px;padding:10px 11px;background:#fffdf7;color:#243b30;font:inherit}
 .release-create-form textarea{resize:vertical;line-height:1.6}
 .release-create-form .full-span{grid-column:1/-1}
 .release-create-form .button{justify-self:start}
 .release-list-admin{display:grid;gap:12px;padding-top:16px}
-.release-admin-card{border:1px solid var(--line);border-radius:14px;padding:15px;background:var(--paper)}
+.release-admin-card{border:1px solid #e5e7df;border-radius:14px;padding:15px;background:#fffdf7}
 .release-admin-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .release-admin-head>div{display:grid;gap:4px}
-.release-admin-head strong{color:var(--green)}
-.release-admin-head small,.release-admin-actions small,.upload-progress{font-size:.72rem;color:var(--muted)}
+.release-admin-head strong{color:#173d32}
+.release-admin-head small,.release-admin-actions small,.upload-progress{font-size:.72rem;color:#78867d}
 .release-upload{display:grid;grid-template-columns:140px minmax(100px,1fr) auto;gap:8px;align-items:center}
 .release-upload select,.release-upload input{min-height:38px}
 .file-picker{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap}
 .upload-progress{grid-column:1/-1}
 .release-admin-actions{display:flex;align-items:center;gap:12px;margin-top:12px}
-.release-security-note{margin:16px 0 0;color:var(--muted);font-size:.72rem;line-height:1.7}
+.release-security-note{margin:16px 0 0;color:#78867d;font-size:.72rem;line-height:1.7}
 @media(max-width:760px){.release-create-form{grid-template-columns:1fr}.release-create-form .full-span{grid-column:auto}.release-upload{grid-template-columns:1fr}.release-admin-actions{align-items:flex-start;flex-direction:column}}
 
 .release-assets-list{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
-.release-asset-chip{display:inline-flex;padding:5px 8px;border-radius:8px;background:var(--surface-soft);color:var(--muted);font-size:.68rem}
+.release-asset-chip{display:inline-flex;padding:5px 8px;border-radius:8px;background:#f2f3ec;color:#78867d;font-size:.68rem}
