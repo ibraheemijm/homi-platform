@@ -16,3 +16,10 @@ binding = "DB"
 database_name = "homi-platform"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
+
+# R2 bucket for HREQ uploads, release packages, and payment evidence.
+# Create the local/remote buckets before enabling remote use.
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "homi-platform-files"
+preview_bucket_name = "homi-platform-files-preview"
