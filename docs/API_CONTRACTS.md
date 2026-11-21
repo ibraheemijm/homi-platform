@@ -21,10 +21,15 @@ Base path: `/api/v1`.
 ```json
 {
   "product_key": "homi-grocery",
+  "device_id": "DEVICE_UUID_V4",
   "platform_key": "android",
   "architecture_key": "universal",
   "device_label": "Homi Grocery - android",
-  "public_key": "BASE64URL_RAW_ED25519_PUBLIC_KEY"
+  "public_key": "BASE64URL_RAW_ED25519_PUBLIC_KEY",
+  "customer_name": "اسم العميل أو المتجر",
+  "customer_phone": "+249...",
+  "requested_plan": "monthly",
+  "customer_notes": "ملاحظات اختيارية"
 }
 ```
 
@@ -40,7 +45,7 @@ Base path: `/api/v1`.
 }
 ```
 
-يدعم الخادم إعادة نفس الطلب المفتوح لنفس بصمة المفتاح بدل إنشاء طلبات نشطة مكررة.
+يدعم الخادم إعادة نفس الطلب المفتوح لنفس بصمة المفتاح بدل إنشاء طلبات نشطة مكررة. حقول العميل والخطة اختيارية للتوافق مع العملاء السابقين؛ ويرسلها الإصدار الجديد مع معرف الجهاز الثابت.
 
 ## إثبات ملكية الجهاز
 
