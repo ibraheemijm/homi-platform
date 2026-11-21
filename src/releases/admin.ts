@@ -1,6 +1,6 @@
 import type { Env } from "../types";
 import { authenticateAdmin } from "../security/access";
-import { signLicensePayload } from "../licensing/signer";
+import { signUpdatePayload } from "../licensing/signer";
 
 type UploadSession = {
   id: string;
@@ -213,7 +213,7 @@ export async function handleReleaseAdmin(
         "HOMI_RELEASE_ASSET_V1", session.release_id, session.platform_key,
         session.architecture_key, session.file_name, String(session.size_bytes), session.sha256_hex,
       ].join("\n"));
-      const signature = await signLicensePayload(env, manifest);
+      const signature = await signUpdatePayload(env, manifest);
       const assetId = crypto.randomUUID();
       const now = new Date().toISOString();
       await env.DB.batch([
