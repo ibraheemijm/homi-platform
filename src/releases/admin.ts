@@ -71,7 +71,11 @@ export async function handleReleaseAdmin(
     const rows = await env.DB.prepare(
       `SELECT r.id, p.product_key, p.display_name, r.version, r.build_number, r.channel,
               r.status, r.release_notes_ar, r.release_notes_en, r.published_at, r.created_at,
-              (SELECT COUNT(*) FROM release_assets a WHERE a.release_id = r.id) AS asset_count
+              (SELECT COUNT(*) FROM release_assets a WHERE a.release_id = r.id) AS asset_count,
+              (SELECT json_group_array(json_object(
+                'platform_key', a.platform_key, 'architecture_key', a.architecture_key,
+                'file_name', a.file_name, 'size_bytes', a.size_bytes
+              )) FROM release_assets a WHERE a.release_id = r.id) AS assets_json
        FROM product_releases r JOIN products p ON p.id = r.product_id
        WHERE p.product_key = ? ORDER BY r.created_at DESC LIMIT 100`
     ).bind(productKey).all();
