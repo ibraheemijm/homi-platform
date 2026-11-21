@@ -101,7 +101,7 @@ export async function issueOfflineGrant(
   if (!UUID_RE.test(licenseId) || !UUID_RE.test(deviceId)) {
     return fail("DEVICE_NOT_LINKED", "الجهاز أو الترخيص غير موجود.", 404);
   }
-  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  const body = await parseBody(request);
   const challengeId = body?.challenge_id;
   const nonceText = body?.nonce;
   const signatureText = body?.signature;
@@ -164,6 +164,12 @@ export async function issueOfflineGrant(
     originalClaims = JSON.parse(new TextDecoder().decode(decodeBase64(row.payload_b64))) as Record<string, unknown>;
   } catch {
     return fail("LICENSE_INVALID", "بيانات الترخيص المخزنة غير صالحة.", 500);
+  }
+  if (originalClaims.license_id !== licenseId ||
+      originalClaims.device_id !== deviceId ||
+      originalClaims.product_key !== "homi-grocery" ||
+      originalClaims.plan_key !== row.plan_key) {
+    return fail("LICENSE_INVALID", "الترخيص المخزن لا يطابق الجهاز أو المنتج.", 500);
   }
 
   const now = new Date().toISOString();
