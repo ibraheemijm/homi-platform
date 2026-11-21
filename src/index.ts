@@ -2,6 +2,7 @@ import type { Env, ActivationRequestRow } from "./types";
 import { authenticateAdmin } from "./security/access";
 import { approveActivationRequest } from "./licensing/issue";
 import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-grants";
+import { importHreq } from "./activation/hreq";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -345,6 +346,12 @@ export default {
 
     if (request.method === "POST" && path === "/public/activation-requests") {
       return createActivation(request, env, headers);
+    }
+    if (request.method === "POST" && path === "/public/activation-requests/import") {
+      if (!(await rateLimit(request, env, "hreq-import", 5))) {
+        return error("RATE_LIMITED", "تم تجاوز عدد مرات رفع ملفات الطلب مؤقتًا.", 429, headers);
+      }
+      return withHeaders(await importHreq(request, env), headers);
     }
     const proofMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/proof$/);
     if (request.method === "POST" && proofMatch) {
