@@ -3,6 +3,10 @@ export interface Env {
   APP_ENV: string;
   SUPPORT_PHONE: string;
   PUBLIC_SITE_ORIGIN: string;
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
+  LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
+  LICENSE_SIGNING_KEY_ID?: string;
   LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
   LICENSE_SIGNING_KEY_ID?: string;
 }
