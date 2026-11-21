@@ -7,6 +7,7 @@ workers_dev = true
 APP_ENV = "development"
 SUPPORT_PHONE = "+2490904697455"
 PUBLIC_SITE_ORIGIN = "http://localhost:4321"
+ADMIN_SITE_ORIGIN = "http://localhost:5173"
 
 # أنشئ D1 مستقلة لكل بيئة، ثم استبدل القيمة التالية بمعرف القاعدة الفعلي.
 # لا تستخدم قاعدة الإنتاج في التطوير المحلي.
