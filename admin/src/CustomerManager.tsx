@@ -25,7 +25,7 @@ export default function CustomerManager({apiBase,onError,onNotice}:Props){
   const [seats,setSeats]=useState<Record<string,number>>({}); const [requests,setRequests]=useState<ActivationRequest[]>([]);
   const [assigning,setAssigning]=useState(""); const [requestId,setRequestId]=useState("");
   const [renewalFor,setRenewalFor]=useState(""); const [renewalAmount,setRenewalAmount]=useState(0);
-  const [renewalMethod,setRenewalMethod]=useState("cash"); const [renewalReference,setRenewalReference]=useState("");
+  const [renewalMethod,setRenewalMethod]=useState("cash"); const [renewalCurrency,setRenewalCurrency]=useState("SDG"); const [renewalReference,setRenewalReference]=useState("");
   const load=async()=>{
     setBusy(true);onError("");
     try{const r=await api<{items:Customer[]}>(apiBase,"/admin/customers?q="+encodeURIComponent(q)+"&limit=100");setItems(r.items);}
@@ -80,6 +80,7 @@ export default function CustomerManager({apiBase,onError,onNotice}:Props){
         {renewalFor===s.id&&<div className="form-grid" style={{marginTop:14}}>
           <label>المبلغ المستلم<input type="number" min={1} step={1} value={renewalAmount} onChange={e=>setRenewalAmount(Number(e.target.value))}/></label>
           <label>طريقة الدفع<select value={renewalMethod} onChange={e=>setRenewalMethod(e.target.value)}><option value="cash">نقدًا</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
+          <label>العملة<input maxLength={3} minLength={3} dir="ltr" value={renewalCurrency} onChange={e=>setRenewalCurrency(e.target.value.toUpperCase())}/></label>
           <label className="full-span">مرجع الدفع / ملاحظات<input maxLength={500} value={renewalReference} onChange={e=>setRenewalReference(e.target.value)}/></label>
           <div className="full-span payment-warning">تأكيد التجديد يعني أن الإدارة استلمت المبلغ بالفعل. سيتم تمديد الاشتراك وإعادة توقيع تراخيص الأجهزة المرتبطة.</div>
           <div className="modal-actions full-span">
@@ -88,7 +89,7 @@ export default function CustomerManager({apiBase,onError,onNotice}:Props){
               try{
                 await api(apiBase,"/admin/subscriptions/"+s.id+"/renew",{
                   method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},
-                  body:JSON.stringify({payment_method:renewalMethod,amount_minor:renewalAmount,currency:"SDG",received_at:new Date().toISOString(),reference_note:renewalReference})
+                  body:JSON.stringify({payment_method:renewalMethod,amount_minor:renewalAmount,currency:renewalCurrency,received_at:new Date().toISOString(),reference_note:renewalReference})
                 });
                 setRenewalFor("");setRenewalAmount(0);setRenewalReference("");
                 onNotice("تم تأكيد الدفعة وتجديد الاشتراك وإعادة توقيع التراخيص.");
