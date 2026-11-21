@@ -1,5 +1,4 @@
 ALTER TABLE payments ADD COLUMN proof_object_key TEXT;
-ALTER TABLE payments ADD COLUMN amount_minor INTEGER NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS admin_roles (
   role_key TEXT PRIMARY KEY,
