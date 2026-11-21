@@ -211,3 +211,11 @@ homi-grocery
 - `POST /admin/payment-submissions/{id}/reject`: رفض الإثبات مع ملاحظة مراجعة اختيارية.
 
 لا يصدر الترخيص باستخدام إثبات مرفوع إلا بعد أن تصبح حالته `confirmed`. يربط سجل الدفع النهائي بمعرف الإثبات لمنع إعادة استخدامه في ترخيص آخر. ويظل بإمكان الإدارة تسجيل دفعة مباشرة عند استلامها يدويًا دون رفع إيصال عبر الموقع.
+
+
+## كتالوج الإصدارات العامة
+
+- `GET /public/products/{product_key}/releases/latest?platform_key=android&architecture_key=arm64-v8a&channel=stable`
+- `GET /public/releases/{release_id}/assets/{asset_id}/download`
+
+لا تعرض الواجهة إلا الإصدارات بحالة `published` للمنتجات النشطة. يعيد المسار الأول بيانات الإصدار وبصمة SHA-256 ورابط التنزيل. يتحقق مسار التنزيل من أن الإصدار ما زال منشورًا وأن الأصل تابع له، ثم يقرأ الملف من R2.
