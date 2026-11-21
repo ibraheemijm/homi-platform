@@ -43,3 +43,6 @@
 .release-admin-actions{display:flex;align-items:center;gap:12px;margin-top:12px}
 .release-security-note{margin:16px 0 0;color:var(--muted);font-size:.72rem;line-height:1.7}
 @media(max-width:760px){.release-create-form{grid-template-columns:1fr}.release-create-form .full-span{grid-column:auto}.release-upload{grid-template-columns:1fr}.release-admin-actions{align-items:flex-start;flex-direction:column}}
+
+.release-assets-list{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+.release-asset-chip{display:inline-flex;padding:5px 8px;border-radius:8px;background:var(--surface-soft);color:var(--muted);font-size:.68rem}
