@@ -166,7 +166,7 @@ async function createActivation(request: Request, env: Env, headers: HeadersInit
          architecture_key = excluded.architecture_key,
          device_label = excluded.device_label,
          updated_at = excluded.updated_at`
-    ).bind(id, product.id, platform, architecture, label, publicKeyText, fingerprint, now, now),
+    ).bind(deviceId, product.id, platform, architecture, label, publicKeyText, fingerprint, now, now),
     env.DB.prepare(
       `INSERT INTO activation_requests
        (id, product_id, platform_key, architecture_key, device_label, public_key_raw_b64url,
