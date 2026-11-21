@@ -2,6 +2,8 @@ import type { Env } from "../types";
 import { authenticateAdmin } from "../security/access";
 import { encodePayloadBase64, signUpdatePayload } from "../licensing/signer";
 
+const API_PREFIX = "/api/v1";
+
 type UploadSession = {
   id: string;
   release_id: string;
