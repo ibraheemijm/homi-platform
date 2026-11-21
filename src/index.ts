@@ -1,6 +1,7 @@
 import type { Env, ActivationRequestRow } from "./types";
 import { authenticateAdmin } from "./security/access";
 import { approveActivationRequest } from "./licensing/issue";
+import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-grants";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -350,6 +351,23 @@ export default {
     if (request.method === "GET" && statusMatch) {
       return activationStatus(env, statusMatch[1], headers);
     }
+
+    const challengeMatch = path.match(/^\/public\/devices\/([^/]+)\/challenges$/);
+    if (request.method === "POST" && challengeMatch) {
+      if (!(await rateLimit(request, env, "device-challenge", 20))) {
+        return error("RATE_LIMITED", "تم تجاوز عدد طلبات تجديد التصريح.", 429, headers);
+      }
+      return withHeaders(await createDeviceChallenge(request, env, challengeMatch[1]), headers);
+    }
+
+    const grantMatch = path.match(/^\/public\/licenses\/([^/]+)\/devices\/([^/]+)\/offline-grants$/);
+    if (request.method === "POST" && grantMatch) {
+      if (!(await rateLimit(request, env, "offline-grant", 20))) {
+        return error("RATE_LIMITED", "تم تجاوز عدد محاولات تجديد التصريح.", 429, headers);
+      }
+      return withHeaders(await issueOfflineGrant(request, env, grantMatch[1], grantMatch[2]), headers);
+    }
+
     return error("NOT_FOUND", "المسار غير موجود.", 404, headers);
   },
 };
