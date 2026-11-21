@@ -66,7 +66,7 @@ export async function handleCustomerAdmin(
                 l.id AS license_id, l.subscription_id, l.status AS license_status,
                 l.starts_at AS license_starts_at, l.ends_at AS license_ends_at
          FROM devices d JOIN products p ON p.id = d.product_id
-         LEFT JOIN licenses l ON l.device_id = d.id
+         LEFT JOIN licenses l ON l.id = (SELECT l2.id FROM licenses l2 WHERE l2.device_id = d.id ORDER BY l2.created_at DESC LIMIT 1)
          WHERE d.customer_id = ? ORDER BY d.created_at DESC`
       ).bind(customerId).all(),
       env.DB.prepare(
@@ -183,7 +183,9 @@ export async function handleCustomerAdmin(
        JOIN activation_requests ar ON ar.id = ?
        JOIN products p ON p.id = s.product_id
        JOIN devices d ON d.product_id = ar.product_id AND d.key_fingerprint = ar.key_fingerprint
-       WHERE s.id = ? LIMIT 1`
+       WHERE s.id = ?
+         AND NOT EXISTS (SELECT 1 FROM licenses prior WHERE prior.device_id = d.id AND prior.status = 'active')
+       LIMIT 1`
     ).bind(requestId, subscriptionId).first<{
       subscription_id:string;customer_id:string;product_id:string;plan_key:string;subscription_status:string;
       starts_at:string|null;ends_at:string|null;max_devices:number;request_id:string;request_status:string;
