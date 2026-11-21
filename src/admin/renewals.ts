@@ -143,11 +143,13 @@ export async function handleSubscriptionRenewal(request: Request, env: Env, path
   ];
   for (const license of renewed) {
     statements.push(env.DB.prepare(
-      "UPDATE licenses SET status = ?, key_id = ?, payload_b64 = ?, signature_b64 = ?, starts_at = ?, ends_at = ? " +
+      "UPDATE licenses SET status = (SELECT d.status FROM devices d WHERE d.id = licenses.device_id), " +
+      "key_id = ?, payload_b64 = ?, signature_b64 = ?, ends_at = ? " +
       "WHERE id = ? AND subscription_id = ? AND status IN ('active','suspended','expired') " +
+      "AND EXISTS (SELECT 1 FROM devices d WHERE d.id = licenses.device_id AND d.status IN ('active','suspended')) " +
       "AND EXISTS (SELECT 1 FROM idempotency_keys WHERE idempotency_key = ?) " +
       "AND EXISTS (SELECT 1 FROM subscriptions WHERE id = ? AND ends_at = ? AND updated_at = ?)"
-    ).bind(license.status,license.keyId,license.payload,license.signature,startsAt,newEnd,
+    ).bind(license.keyId,license.payload,license.signature,newEnd,
       license.id,subscriptionId,idempotencyKey,subscriptionId,newEnd,now));
   }
   statements.push(env.DB.prepare(
