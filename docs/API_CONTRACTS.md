@@ -279,3 +279,26 @@ sha256_hex
 - `GET /api/v1/updates/{asset_id}/download`: ينزل الحزمة المنشورة من R2.
 
 معرف `publication_id` في manifest هو معرف الحزمة نفسها (asset ID)، ورابط التنزيل الموقّع يطابق مسار `/updates/{asset_id}/download`. يرسل تطبيق Grocery طلب فحص بلا رمز عميل، ثم يتحقق من توقيع manifest عبر Keyset، وبعد التنزيل يتحقق من الحجم وSHA-256 قبل إتاحة التثبيت. لا ترسل هذه الواجهات بيانات المبيعات أو المخزون أو أي معلومات تشغيلية من قاعدة بيانات المتجر.
+
+
+## إدارة العملاء والأجهزة والاشتراكات
+
+جميع المسارات التالية تتطلب جلسة Cloudflare Access وصلاحيات RBAC المناسبة. لا توجد حسابات دخول للعملاء.
+
+- `GET /admin/customers?q=...&limit=50` — `customers.read`: البحث بالاسم أو الهاتف وعرض أعداد الاشتراكات والأجهزة النشطة.
+- `GET /admin/customers/{customer_id}` — `customers.read`: ملف العميل والاشتراكات والأجهزة والتراخيص والمدفوعات.
+- `PATCH /admin/customers/{customer_id}` — `customers.write`: تعديل الاسم ورقم الهاتف والملاحظات.
+- `PATCH /admin/subscriptions/{subscription_id}` — `subscriptions.manage`: تعديل `max_devices` من 1 إلى 100. يرفض الخادم خفض السعة إلى أقل من عدد التراخيص النشطة.
+- `POST /admin/subscriptions/{subscription_id}/assign-device` — `activation_requests.review` و`subscriptions.manage` و`licenses.issue`: ربط طلب جهاز اجتاز إثبات الملكية باشتراك نشط قائم للمنتج نفسه.
+- `POST /admin/subscriptions/{subscription_id}/suspend` أو `/reactivate` — `subscriptions.manage`: إيقاف الاشتراك أو إعادة تفعيله إذا كان تاريخ انتهائه لم يحن.
+- `POST /admin/devices/{device_id}/suspend` أو `/reactivate` أو `/revoke` — `devices.manage`: تغيير حالة الجهاز وتحديث حالة ترخيصه المرتبط.
+
+طلب ربط جهاز باشتراك قائم:
+
+```json
+{ "activation_request_id": "UUID" }
+```
+
+لا يقبل الربط إلا إذا كان الاشتراك نشطًا وغير منتهٍ، والمنتج متطابقًا، والجهاز قد اجتاز إثبات الملكية، ولم يكن مرتبطًا بعميل آخر. يحجز الخادم المقعد داخل عملية D1، ولا يصدر الترخيص إذا امتلأت السعة أو سبق استخدام طلب التفعيل. يعاد نفس الترخيص عند إعادة إرسال طلب سبق اعتماده.
+
+كل تغيير إداري يسجل في `audit_logs`. إيقاف الجهاز أو الاشتراك يمنع إصدار Offline Grant جديد؛ وقد يستمر العمل دون اتصال حتى انتهاء التصريح الموقع السابق. الإلغاء النهائي للجهاز غير قابل لإعادة التفعيل من هذه الواجهات.
