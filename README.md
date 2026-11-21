@@ -8,7 +8,7 @@
 
 ## المكونات
 
-- `apps/api`: Cloudflare Worker API.
+- `src`: Cloudflare Worker API.
 - `migrations`: مخطط D1 وتطوراته.
 - `docs`: المعمارية والعقود والأمن والتشغيل.
 - `tests`: اختبارات Worker.
