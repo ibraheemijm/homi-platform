@@ -86,21 +86,26 @@ export async function approveActivationRequest(
   const phone = typeof body.customer_phone === "string" ? body.customer_phone.trim() : "";
   const plan = body.plan_key;
   const maxDevices = body.max_devices;
-  const paymentMethod = body.payment_method;
-  const amountMinor = body.amount_minor;
-  const currency = typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "";
-  const receivedAt = typeof body.received_at === "string" ? body.received_at : "";
-  const referenceNote = typeof body.reference_note === "string" ? body.reference_note.trim() : null;
+  const paymentSubmissionId = typeof body.payment_submission_id === "string"
+    ? body.payment_submission_id : null;
+  let paymentMethod = body.payment_method;
+  let amountMinor = body.amount_minor;
+  let currency = typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "";
+  let receivedAt = typeof body.received_at === "string" ? body.received_at : "";
+  let referenceNote = typeof body.reference_note === "string" ? body.reference_note.trim() : null;
 
   if (customerName.length < 2 || customerName.length > 120 ||
-      !/^\+[1-9][0-9]{7,14}$/.test(phone) ||
+      !/^[+][1-9][0-9]{7,14}$/.test(phone) ||
       typeof plan !== "string" || !["monthly", "annual", "lifetime"].includes(plan) ||
       typeof maxDevices !== "number" || !Number.isInteger(maxDevices) || maxDevices < 1 || maxDevices > 100 ||
-      typeof paymentMethod !== "string" || !["cash", "bank_transfer", "other"].includes(paymentMethod) ||
-      typeof amountMinor !== "number" || !Number.isSafeInteger(amountMinor) || amountMinor < 1 ||
-      !/^[A-Z]{3}$/.test(currency) ||
-      !Number.isFinite(Date.parse(receivedAt)) ||
-      (referenceNote !== null && referenceNote.length > 500)) {
+      (paymentSubmissionId !== null && !UUID_RE.test(paymentSubmissionId)) ||
+      (paymentSubmissionId === null && (
+        typeof paymentMethod !== "string" || !["cash", "bank_transfer", "other"].includes(paymentMethod) ||
+        typeof amountMinor !== "number" || !Number.isSafeInteger(amountMinor) || amountMinor < 1 ||
+        !/^[A-Z]{3}$/.test(currency) ||
+        !Number.isFinite(Date.parse(receivedAt)) ||
+        (referenceNote !== null && referenceNote.length > 500)
+      ))) {
     return fail("INVALID_APPROVAL_DETAILS", "بيانات العميل أو الاشتراك أو تأكيد الدفع غير مكتملة.", 422);
   }
 
@@ -124,6 +129,25 @@ export async function approveActivationRequest(
       !["proof_verified", "under_review"].includes(activation.status) ||
       ["revoked", "suspended"].includes(activation.device_status)) {
     return fail("ACTIVATION_REQUEST_NOT_APPROVABLE", "الطلب لم يجتز إثبات الجهاز أو لم يعد قابلًا للموافقة.", 409);
+  }
+
+  if (paymentSubmissionId !== null) {
+    const submission = await env.DB.prepare(
+      `SELECT method, amount_minor, currency, reference_note, submitted_at
+       FROM payment_submissions
+       WHERE id = ? AND activation_request_id = ? AND status = 'confirmed'
+       LIMIT 1`
+    ).bind(paymentSubmissionId, requestId).first<{
+      method: string; amount_minor: number; currency: string; reference_note: string | null; submitted_at: string;
+    }>();
+    if (!submission) {
+      return fail("PAYMENT_NOT_CONFIRMED", "يجب تأكيد استلام إثبات الدفع المرتبط بهذا الطلب قبل إصدار الترخيص.", 409);
+    }
+    paymentMethod = submission.method;
+    amountMinor = submission.amount_minor;
+    currency = submission.currency;
+    receivedAt = submission.submitted_at;
+    referenceNote = submission.reference_note;
   }
 
   const nowDate = new Date();
@@ -201,9 +225,11 @@ export async function approveActivationRequest(
       ).bind(subscriptionId, customerId, activation.product_id, plan, now, endsAt, maxDevices, now, now),
       env.DB.prepare(
         `INSERT INTO payments
-         (id, subscription_id, method, amount_minor, currency, received_at, status, reference_note, confirmed_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?)`
-      ).bind(paymentId, subscriptionId, paymentMethod, amountMinor, currency, new Date(receivedAt).toISOString(), referenceNote, actor.id, now, now),
+         (id, subscription_id, method, amount_minor, currency, received_at, status, reference_note,
+          confirmed_by, payment_submission_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?)`
+      ).bind(paymentId, subscriptionId, paymentMethod, amountMinor, currency,
+        new Date(receivedAt).toISOString(), referenceNote, actor.id, paymentSubmissionId, now, now),
       env.DB.prepare(
         `UPDATE devices SET customer_id = ?, status = 'active', updated_at = ? WHERE id = ?`
       ).bind(customerId, now, activation.device_id),
@@ -226,7 +252,7 @@ export async function approveActivationRequest(
          VALUES (?, ?, 'activation.approve_and_issue', 'license', ?, ?, ?, ?)`
       ).bind(crypto.randomUUID(), actor.id, licenseId, JSON.stringify({
         activation_request_id: requestId, customer_id: customerId, subscription_id: subscriptionId,
-        plan_key: plan, max_devices: maxDevices, payment_id: paymentId, amount_minor: amountMinor, currency,
+        plan_key: plan, max_devices: maxDevices, payment_id: paymentId, payment_submission_id: paymentSubmissionId, amount_minor: amountMinor, currency,
       }), requestId, now),
     ]);
   } catch {
