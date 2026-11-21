@@ -40,7 +40,7 @@ function allowedAsset(platform: string, fileName: string, contentType: string): 
   if (platform === "windows") return ["exe", "msi", "zip"].includes(extension) &&
     ["application/octet-stream", "application/zip", "application/x-msdownload", "application/x-msi"].includes(contentType);
   if (platform === "linux") return ["appimage", "deb", "rpm", "tar", "gz", "zip"].includes(extension) &&
-    ["application/octet-stream", "application/zip", "application/gzip", "application/x-debian-package", "application/x-rpm"].includes(contentType);
+    ["application/octet-stream", "application/zip", "application/gzip", "application/x-debian-package", "application/vnd.debian.binary-package", "application/x-rpm"].includes(contentType);
   return false;
 }
 
@@ -63,7 +63,6 @@ export async function handleReleaseAdmin(
   if (!path.startsWith("/admin/releases") && !path.startsWith("/admin/release-uploads/")) return null;
   const auth = await admin(request, env, headers);
   if (auth.response) return auth.response;
-  if (!env.FILES) return fail("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
 
   if (path === "/admin/releases" && request.method === "GET") {
     const productKey = new URL(request.url).searchParams.get("product_key") || "homi-grocery";
@@ -110,6 +109,8 @@ export async function handleReleaseAdmin(
     return json({ release_id: id, status: "draft" }, 201, headers);
   }
 
+  if (!env.FILES) return fail("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
+
   const startMatch = path.match(/^\/admin\/releases\/([0-9a-f-]{36})\/uploads$/i);
   if (request.method === "POST" && startMatch) {
     const releaseId = startMatch[1];
@@ -131,6 +132,12 @@ export async function handleReleaseAdmin(
         !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 1024 * 1024 * 1024 ||
         !/^[a-f0-9]{64}$/.test(sha256)) {
       return fail("INVALID_RELEASE_ASSET", "بيانات ملف الإصدار غير صالحة أو حجم الملف يتجاوز 1 جيجابايت.", 422, headers);
+    }
+    const existingAsset = await env.DB.prepare(
+      "SELECT id FROM release_assets WHERE release_id = ? AND platform_key = ? AND architecture_key = ? LIMIT 1"
+    ).bind(releaseId, platform, architecture).first<{ id: string }>();
+    if (existingAsset) {
+      return fail("RELEASE_ASSET_ALREADY_EXISTS", "توجد حزمة لهذه المنصة والمعمارية ضمن الإصدار.", 409, headers);
     }
     const id = crypto.randomUUID();
     const objectKey = `releases/${releaseId}/${id}/${fileName}`;
@@ -220,6 +227,14 @@ export async function handleReleaseAdmin(
           session.object_key, signature.keyId, signature.signatureB64, now),
         env.DB.prepare("UPDATE release_upload_sessions SET status = 'completed', updated_at = ? WHERE id = ?")
           .bind(now, session.id),
+        env.DB.prepare(
+          `INSERT INTO audit_logs (id, actor_admin_id, action_key, entity_type, entity_id, after_json, created_at)
+           VALUES (?, ?, 'release.asset_uploaded', 'release_asset', ?, ?, ?)`
+        ).bind(crypto.randomUUID(), auth.actor!.id, assetId, JSON.stringify({
+          release_id: session.release_id, platform_key: session.platform_key,
+          architecture_key: session.architecture_key, file_name: session.file_name,
+          size_bytes: session.size_bytes, sha256_hex: session.sha256_hex,
+        }), now),
       ]);
       return json({ asset_id: assetId, status: "uploaded", sha256: session.sha256_hex, signature_key_id: signature.keyId }, 201, headers);
     } catch {
