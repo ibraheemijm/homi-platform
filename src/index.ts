@@ -483,6 +483,87 @@ export default {
     if (request.method === "POST" && proofMatch) {
       return verifyActivationProof(request, env, proofMatch[1], headers);
     }
+    const latestReleaseMatch = path.match(/^\/public\/products\/([a-z0-9-]+)\/releases\/latest$/);
+    if (request.method === "GET" && latestReleaseMatch) {
+      const productKey = latestReleaseMatch[1];
+      const platform = url.searchParams.get("platform_key");
+      const architecture = url.searchParams.get("architecture_key") || "universal";
+      const channel = url.searchParams.get("channel") || "stable";
+      if (!["android", "windows", "linux"].includes(platform || "") ||
+          !/^[a-z0-9][a-z0-9._-]{0,31}$/.test(architecture) ||
+          !["stable", "beta"].includes(channel)) {
+        return error("INVALID_RELEASE_QUERY", "منصة أو معمارية أو قناة الإصدار غير صالحة.", 400, headers);
+      }
+      const release = await env.DB.prepare(
+        `SELECT r.id AS release_id, r.version, r.build_number, r.channel,
+                r.release_notes_ar, r.release_notes_en, r.published_at,
+                a.id AS asset_id, a.platform_key, a.architecture_key, a.file_name,
+                a.content_type, a.size_bytes, a.sha256_hex, a.signature_key_id, a.signature_b64
+         FROM products p
+         JOIN product_releases r ON r.product_id = p.id
+         JOIN release_assets a ON a.release_id = r.id
+         WHERE p.product_key = ? AND p.is_active = 1
+           AND r.status = 'published' AND r.channel = ?
+           AND a.platform_key = ?
+           AND a.architecture_key IN (?, 'universal')
+         ORDER BY CASE WHEN a.architecture_key = ? THEN 0 ELSE 1 END,
+                  r.published_at DESC
+         LIMIT 1`
+      ).bind(productKey, channel, platform, architecture, architecture).first<{
+        release_id: string; version: string; build_number: string; channel: string;
+        release_notes_ar: string | null; release_notes_en: string | null; published_at: string;
+        asset_id: string; platform_key: string; architecture_key: string; file_name: string;
+        content_type: string; size_bytes: number; sha256_hex: string;
+        signature_key_id: string | null; signature_b64: string | null;
+      }>();
+      if (!release) return error("RELEASE_NOT_FOUND", "لا يوجد إصدار منشور مطابق لهذا الجهاز.", 404, headers);
+      return json({
+        release: {
+          id: release.release_id, version: release.version, build_number: release.build_number,
+          channel: release.channel, release_notes_ar: release.release_notes_ar,
+          release_notes_en: release.release_notes_en, published_at: release.published_at,
+        },
+        asset: {
+          id: release.asset_id, platform_key: release.platform_key,
+          architecture_key: release.architecture_key, file_name: release.file_name,
+          content_type: release.content_type, size_bytes: release.size_bytes,
+          sha256: release.sha256_hex, signature_key_id: release.signature_key_id,
+          signature: release.signature_b64,
+          download_url: `${API_PREFIX}/public/releases/${release.release_id}/assets/${release.asset_id}/download`,
+        },
+      }, 200, headers);
+    }
+
+    const releaseDownloadMatch = path.match(/^\/public\/releases\/([^/]+)\/assets\/([^/]+)\/download$/);
+    if (request.method === "GET" && releaseDownloadMatch) {
+      if (!env.FILES) return error("FILE_STORAGE_UNAVAILABLE", "تخزين الملفات غير مهيأ.", 503, headers);
+      const row = await env.DB.prepare(
+        `SELECT a.r2_object_key, a.file_name, a.content_type, a.size_bytes
+         FROM release_assets a
+         JOIN product_releases r ON r.id = a.release_id
+         JOIN products p ON p.id = r.product_id
+         WHERE r.id = ? AND a.id = ? AND r.status = 'published' AND p.is_active = 1
+         LIMIT 1`
+      ).bind(releaseDownloadMatch[1], releaseDownloadMatch[2]).first<{
+        r2_object_key: string; file_name: string; content_type: string; size_bytes: number;
+      }>();
+      if (!row) return error("RELEASE_ASSET_NOT_FOUND", "ملف الإصدار غير موجود أو لم يعد منشورًا.", 404, headers);
+      const object = await env.FILES.get(row.r2_object_key);
+      if (!object) return error("RELEASE_ASSET_NOT_FOUND", "ملف الإصدار غير متاح حاليًا.", 404, headers);
+      const safeName = row.file_name.replace(/[^A-Za-z0-9._-]/g, "_");
+      const downloadResponse = new Response(object.body, {
+        status: 200,
+        headers: {
+          "content-type": row.content_type,
+          "content-length": String(row.size_bytes),
+          "content-disposition": `attachment; filename="${safeName}"`,
+          "cache-control": "public, max-age=3600",
+          "x-content-type-options": "nosniff",
+        },
+      });
+      return withHeaders(downloadResponse, headers);
+    }
+
     const paymentSubmissionMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/payment-submissions$/);
     if (request.method === "POST" && paymentSubmissionMatch) {
       if (!(await rateLimit(request, env, "payment-evidence", 5))) {
