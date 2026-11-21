@@ -223,7 +223,7 @@ export default function ReleaseManager({ onError, onNotice }: Props) {
       </div>
       <form className="release-create-form" onSubmit={create}>
         <label>رقم الإصدار<input required pattern="[0-9]+\.[0-9]+\.[0-9]+([+-][A-Za-z0-9.-]+)?" placeholder="1.0.0" value={version} onChange={(event) => setVersion(event.target.value)} /></label>
-        <label>رقم البناء<input required maxLength={40} value={buildNumber} onChange={(event) => setBuildNumber(event.target.value)} placeholder="100" /></label>
+        <label>رقم البناء<input required inputMode="numeric" pattern="[0-9]{1,10}" maxLength={10} value={buildNumber} onChange={(event) => setBuildNumber(event.target.value)} placeholder="100" /></label>
         <label>قناة الإصدار<select value={channel} onChange={(event) => setChannel(event.target.value as Release["channel"])}><option value="stable">مستقر</option><option value="beta">تجريبي</option><option value="internal">داخلي</option></select></label>
         <label className="full-span">ملاحظات الإصدار بالعربية<textarea maxLength={4000} value={notesAr} onChange={(event) => setNotesAr(event.target.value)} rows={2} /></label>
         <label className="full-span">Release notes (English)<textarea maxLength={4000} value={notesEn} onChange={(event) => setNotesEn(event.target.value)} rows={2} /></label>
