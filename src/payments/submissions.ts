@@ -79,6 +79,15 @@ export async function submitPaymentEvidence(
     return fail("ACTIVATION_NOT_PAYABLE", "لا يمكن إرفاق دفعة بهذا الطلب في حالته الحالية.", 409);
   }
 
+  const confirmed = await env.DB.prepare(
+    `SELECT id FROM payment_submissions
+     WHERE activation_request_id = ? AND status = 'confirmed'
+     LIMIT 1`
+  ).bind(activationRequestId).first<{ id: string }>();
+  if (confirmed) {
+    return fail("PAYMENT_ALREADY_CONFIRMED", "تم تأكيد دفعة لهذا الطلب بالفعل.", 409);
+  }
+
   const pending = await env.DB.prepare(
     `SELECT id, status FROM payment_submissions
      WHERE activation_request_id = ? AND status = 'pending_review'
