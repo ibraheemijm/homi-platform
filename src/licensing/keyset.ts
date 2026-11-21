@@ -16,7 +16,8 @@ export async function createSignedSigningKeyset(env: Env): Promise<Record<string
   const now = new Date();
   const issuedAt = timestamp(now);
   const expiresAt = timestamp(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
-  const notBefore = timestamp(new Date(now.getTime() - 5 * 60 * 1000));
+  // تاريخ صلاحية المفتاح ثابت؛ لا يتغير مع كل تجديد للـKeyset حتى تبقى التواقيع السابقة قابلة للتحقق.
+  const notBefore = "2020-01-01T00:00:00.000Z";
   const notAfter = "2099-12-31T23:59:59.000Z";
   const versionText = env.SIGNING_KEYSET_VERSION?.trim() || "1";
   const version = Number(versionText);
