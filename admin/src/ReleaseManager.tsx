@@ -13,6 +13,14 @@ type Release = {
   release_notes_en: string | null;
   published_at: string | null;
   asset_count: number;
+  assets_json: string | null;
+};
+
+type ReleaseAssetSummary = {
+  platform_key: string;
+  architecture_key: string;
+  file_name: string;
+  size_bytes: number;
 };
 
 type Props = {
@@ -41,6 +49,20 @@ function channelName(channel: Release["channel"]): string {
 
 function statusName(status: Release["status"]): string {
   return status === "draft" ? "مسودة" : status === "published" ? "منشور" : "مسحوب";
+}
+
+function releaseAssets(release: Release): ReleaseAssetSummary[] {
+  try {
+    const parsed = JSON.parse(release.assets_json || "[]");
+    return Array.isArray(parsed) ? parsed.filter((item) =>
+      item && typeof item.platform_key === "string" &&
+      typeof item.architecture_key === "string" &&
+      typeof item.file_name === "string" &&
+      typeof item.size_bytes === "number"
+    ) : [];
+  } catch {
+    return [];
+  }
 }
 
 function ReleaseUploader({ release, onDone, onError }: {
@@ -238,6 +260,15 @@ export default function ReleaseManager({ onError, onNotice }: Props) {
               <div><strong>v{release.version} · Build {release.build_number}</strong><small>{channelName(release.channel)} · {statusName(release.status)}</small></div>
               <span className={`status status-${release.status}`}>{release.asset_count} حزمة</span>
             </div>
+            {release.asset_count > 0 && (
+              <div className="release-assets-list">
+                {releaseAssets(release).map((asset) => (
+                  <span className="release-asset-chip" key={asset.platform_key + asset.architecture_key}>
+                    {asset.platform_key} · {asset.architecture_key} · {(asset.size_bytes / (1024 * 1024)).toFixed(1)} MB
+                  </span>
+                ))}
+              </div>
+            )}
             {release.status === "draft" && (
               <>
                 <ReleaseUploader release={release} onDone={() => {
