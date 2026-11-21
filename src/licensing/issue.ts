@@ -88,8 +88,8 @@ export async function approveActivationRequest(
   const maxDevices = body.max_devices;
   const paymentSubmissionId = typeof body.payment_submission_id === "string"
     ? body.payment_submission_id : null;
-  let paymentMethod = body.payment_method;
-  let amountMinor = body.amount_minor;
+  let paymentMethod: string = typeof body.payment_method === "string" ? body.payment_method : "";
+  let amountMinor: number = typeof body.amount_minor === "number" ? body.amount_minor : 0;
   let currency = typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "";
   let receivedAt = typeof body.received_at === "string" ? body.received_at : "";
   let referenceNote = typeof body.reference_note === "string" ? body.reference_note.trim() : null;
