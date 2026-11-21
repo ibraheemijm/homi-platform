@@ -7,8 +7,6 @@ export interface Env {
   CF_ACCESS_AUD?: string;
   LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
   LICENSE_SIGNING_KEY_ID?: string;
-  LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
-  LICENSE_SIGNING_KEY_ID?: string;
 }
 
 export interface ActivationRequestRow {
