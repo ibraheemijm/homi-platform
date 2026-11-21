@@ -16,6 +16,7 @@ export interface Env {
   ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
   ROOT_SIGNING_KEY_ID?: string;
   SIGNING_KEYSET_VERSION?: string;
+  SIGNING_KEYSET_ADDITIONAL_KEYS_JSON?: string;
 }
 
 export interface ActivationRequestRow {
