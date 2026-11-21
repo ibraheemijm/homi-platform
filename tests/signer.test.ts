@@ -13,8 +13,8 @@ function decodeBase64(value: string): Uint8Array {
 
 describe("Ed25519 license signer", () => {
   it("signs the exact payload bytes with the configured key id", async () => {
-    const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
-    const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
+    const pair = await crypto.subtle.generateKey({ name: "Ed25519" } as AlgorithmIdentifier, true, ["sign", "verify"]) as CryptoKeyPair;
+    const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8" as const, pair.privateKey) as ArrayBuffer);
     const payload = new TextEncoder().encode('{"schema_version":1,"license_id":"test"}');
     const env = {
       LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64: base64(privateDer),
