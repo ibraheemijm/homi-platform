@@ -145,7 +145,7 @@ function ReleaseUploader({ release, onDone, onError }: {
         <option value="windows">Windows</option>
         <option value="linux">Linux</option>
       </select>
-      <input aria-label="المعمارية" value={architecture} maxLength={32} onChange={(event) => setArchitecture(event.target.value)} disabled={busy} />
+      <input aria-label="المعمارية" value={architecture} maxLength={32} onChange={(event) => setArchitecture(event.target.value)} disabled={busy || platform === "android"} />
       <label className="button secondary file-picker">
         {busy ? "جارٍ الرفع..." : "اختيار حزمة"}
         <input type="file" hidden disabled={busy} onChange={(event) => {
