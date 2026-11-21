@@ -36,7 +36,7 @@ describe("Ed25519 license signer", () => {
 
   it("refuses to sign when the private key is missing", async () => {
     await expect(signLicensePayload({} as Env, new Uint8Array([1, 2, 3])))
-      .rejects.toThrow("License signing is not configured.");
+      .rejects.toThrow("Signing key is not configured.");
   });
 
   it("publishes a root-signed keyset with distinct offline-grant and update keys", async () => {
