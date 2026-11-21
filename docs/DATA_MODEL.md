@@ -40,3 +40,14 @@
 ## سياسة التخزين
 
 D1 لا تخزن محتوى ملفات APK أو ملفات الترخيص الثنائية أو إثباتات الدفع. تخزن مفاتيح R2 ومعلومات الحجم والبصمة والحالة. يجب وضع lifecycle ونسخ احتياطية منفصلة للملفات وفق سياسة Cloudflare المعتمدة.
+
+
+## Payment submissions
+
+`payment_submissions` stores manual payment evidence before a subscription is issued. It is linked to an activation request and may contain a private R2 proof object. The workflow is:
+
+`pending_review → confirmed | rejected`
+
+A confirmed submission can be consumed by exactly one final `payments` row through `payments.payment_submission_id`. The final payment is created atomically with the subscription and license issuance. A rejected submission may be replaced by a new submission; a second pending or confirmed submission for the same activation request is blocked by the application workflow.
+
+Receipt files are never publicly addressable. Admin access to a proof is checked through Cloudflare Access and the `payments.read` permission.
