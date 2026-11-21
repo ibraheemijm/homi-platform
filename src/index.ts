@@ -258,7 +258,13 @@ async function activationStatus(env: Env, requestId: string, headers: HeadersIni
   const row = await env.DB.prepare(
     `SELECT ar.status, ar.challenge_expires_at,
             l.id AS license_id, l.device_id, l.key_id, l.status AS license_status,
-            l.payload_b64, l.signature_b64
+            l.payload_b64, l.signature_b64,
+            (SELECT ps.id FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_submission_id,
+            (SELECT ps.status FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_status,
+            (SELECT ps.method FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_method,
+            (SELECT ps.amount_minor FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_amount_minor,
+            (SELECT ps.currency FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS payment_currency,
+            (SELECT CASE WHEN ps.proof_object_key IS NOT NULL THEN 1 ELSE 0 END FROM payment_submissions ps WHERE ps.activation_request_id = ar.id ORDER BY ps.submitted_at DESC LIMIT 1) AS has_payment_proof
      FROM activation_requests ar
      LEFT JOIN devices d ON d.product_id = ar.product_id AND d.key_fingerprint = ar.key_fingerprint
      LEFT JOIN licenses l ON l.device_id = d.id AND l.status = 'active'
@@ -267,6 +273,8 @@ async function activationStatus(env: Env, requestId: string, headers: HeadersIni
     status: string; challenge_expires_at: string;
     license_id: string | null; device_id: string | null; key_id: string | null;
     license_status: string | null; payload_b64: string | null; signature_b64: string | null;
+    payment_submission_id: string | null; payment_status: string | null; payment_method: string | null;
+    payment_amount_minor: number | null; payment_currency: string | null; has_payment_proof: number | null;
   }>();
   if (!row) return error("NOT_FOUND", "طلب التفعيل غير موجود.", 404, headers);
   if (row.status === "pending_proof" && Date.parse(row.challenge_expires_at) <= Date.now()) {
@@ -286,9 +294,27 @@ async function activationStatus(env: Env, requestId: string, headers: HeadersIni
         payload: row.payload_b64,
         signature: row.signature_b64,
       },
+      payment_submission: row.payment_submission_id ? {
+        id: row.payment_submission_id,
+        status: row.payment_status,
+        method: row.payment_method,
+        amount_minor: row.payment_amount_minor,
+        currency: row.payment_currency,
+        has_proof: Boolean(row.has_payment_proof),
+      } : null,
     }, 200, headers);
   }
-  return json({ status: row.status }, 200, headers);
+  return json({
+    status: row.status,
+    payment_submission: row.payment_submission_id ? {
+      id: row.payment_submission_id,
+      status: row.payment_status,
+      method: row.payment_method,
+      amount_minor: row.payment_amount_minor,
+      currency: row.payment_currency,
+      has_proof: Boolean(row.has_payment_proof),
+    } : null,
+  }, 200, headers);
 }
 
 export default {
