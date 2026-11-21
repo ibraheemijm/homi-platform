@@ -51,3 +51,12 @@ D1 لا تخزن محتوى ملفات APK أو ملفات الترخيص الث
 A confirmed submission can be consumed by exactly one final `payments` row through `payments.payment_submission_id`. The final payment is created atomically with the subscription and license issuance. A rejected submission may be replaced by a new submission; a second pending or confirmed submission for the same activation request is blocked by the application workflow.
 
 Receipt files are never publicly addressable. Admin access to a proof is checked through Cloudflare Access and the `payments.read` permission.
+
+
+## إدارة العملاء والأجهزة والمقاعد
+
+- العميل سجل مركزي واحد يمكنه امتلاك عدة اشتراكات، ولا يحتاج إلى حساب دخول.
+- الاشتراك يحدد سعة الأجهزة؛ يحتسب المقعد من الترخيص النشط المرتبط بالاشتراك.
+- ربط جهاز إضافي يتطلب طلب تفعيل مثبت الملكية، واشتراكًا نشطًا للمنتج نفسه، وتطابق العميل أو عدم وجود عميل سابق للجهاز.
+- إيقاف جهاز أو اشتراك يغيّر حالة التراخيص المرتبطة ويُسجل في سجل التدقيق. إعادة تفعيل الجهاز لا تعيد ترخيصًا إذا كان اشتراكه موقوفًا أو منتهيًا.
+- إلغاء الجهاز حالة نهائية؛ لا تُحذف بيانات الجهاز أو الترخيص التاريخي.
