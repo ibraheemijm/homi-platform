@@ -30,6 +30,12 @@ function error(code: string, message: string, status: number, headers: HeadersIn
   return json({ error: { code, message } }, status, headers);
 }
 
+function withHeaders(response: Response, extra: HeadersInit): Response {
+  const merged = new Headers(response.headers);
+  new Headers(extra).forEach((value, key) => merged.set(key, value));
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers: merged });
+}
+
 async function readJson(request: Request): Promise<Record<string, unknown> | null> {
   const length = Number(request.headers.get("content-length") ?? "0");
   if (length > MAX_BODY_BYTES) return null;
@@ -276,13 +282,13 @@ export default {
 
     if (request.method === "GET" && path === "/admin/me") {
       const auth = await authenticateAdmin(request, env);
-      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      if (auth.response) return withHeaders(auth.response, headers);
       return json({ admin: auth.actor }, 200, headers);
     }
 
     if (request.method === "GET" && path === "/admin/activation-requests") {
       const auth = await authenticateAdmin(request, env, ["activation_requests.read"]);
-      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      if (auth.response) return withHeaders(auth.response, headers);
       const status = url.searchParams.get("status");
       const allowedStatuses = new Set(["pending_proof", "proof_verified", "under_review", "approved", "rejected", "cancelled", "expired"]);
       if (status && !allowedStatuses.has(status)) return error("INVALID_STATUS_FILTER", "حالة الطلب غير صالحة.", 400, headers);
@@ -301,7 +307,7 @@ export default {
     const reviewMatch = path.match(/^\\/admin\\/activation-requests\\/([^/]+)\\/review$/);
     if (request.method === "POST" && reviewMatch) {
       const auth = await authenticateAdmin(request, env, ["activation_requests.review"]);
-      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      if (auth.response) return withHeaders(auth.response, headers);
       const requestId = reviewMatch[1];
       if (!UUID_RE.test(requestId)) return error("NOT_FOUND", "طلب التفعيل غير موجود.", 404, headers);
       const result = await env.DB.prepare(
@@ -321,11 +327,9 @@ export default {
       const auth = await authenticateAdmin(request, env, [
         "activation_requests.review", "payments.confirm", "subscriptions.manage", "licenses.issue",
       ]);
-      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      if (auth.response) return withHeaders(auth.response, headers);
       const result = await approveActivationRequest(request, env, approveMatch[1], auth.actor);
-      const responseHeaders = new Headers(result.headers);
-      for (const [key, value] of Object.entries(headers)) responseHeaders.set(key, String(value));
-      return new Response(result.body, { status: result.status, headers: responseHeaders });
+      return withHeaders(result, headers);
     }
 
     if (request.method === "POST" && path === "/public/activation-requests") {
