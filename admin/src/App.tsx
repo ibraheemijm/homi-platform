@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 
 type AdminUser = { id: string; email: string; displayName: string; roleKey: string };
 type ActivationRequest = {
@@ -51,7 +52,7 @@ function initialApproval(request?: ActivationRequest): ApprovalForm {
     customer_name: request?.customer_name_snapshot || "",
     customer_phone: request?.customer_phone_snapshot || "+249",
     plan_key: (request?.requested_plan === "annual" || request?.requested_plan === "lifetime"
-      ? request.requested_plan : "monthly"),
+      ? request.requested_plan as ApprovalForm["plan_key"] : "monthly"),
     max_devices: 1,
     payment_method: "cash",
     amount_minor: 1,
@@ -135,7 +136,7 @@ function App() {
     }
   };
 
-  const issueLicense = async (event: React.FormEvent<HTMLFormElement>) => {
+  const issueLicense = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selected) return;
     setSaving(true);
@@ -160,7 +161,7 @@ function App() {
     }
   };
 
-  const updateForm = <K extends keyof ApprovalForm>(key: K, value: ApprovalForm[K]) => {
+  const updateForm = <K extends keyof ApprovalForm,>(key: K, value: ApprovalForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
