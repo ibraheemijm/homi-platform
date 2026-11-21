@@ -180,32 +180,43 @@ export async function importHreq(request: Request, env: Env): Promise<Response> 
   });
 
   try {
-    await env.DB.batch([
+    const results = await env.DB.batch([
       env.DB.prepare(
-        `INSERT INTO devices
+        `INSERT OR IGNORE INTO devices
          (id, product_id, platform_key, architecture_key, device_label, public_key_raw_b64url,
           key_fingerprint, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-         ON CONFLICT(product_id, key_fingerprint) DO UPDATE SET
-           device_label = excluded.device_label,
-           updated_at = excluded.updated_at`
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
       ).bind(deviceId, product.id, platform, architecture, deviceLabel, publicKeyText, fingerprint, now, now),
+      env.DB.prepare(
+        `UPDATE devices SET platform_key = ?, architecture_key = ?, device_label = ?, updated_at = ?
+         WHERE id = ? AND product_id = ? AND key_fingerprint = ?`
+      ).bind(platform, architecture, deviceLabel, now, deviceId, product.id, fingerprint),
       env.DB.prepare(
         `INSERT INTO activation_requests
          (id, product_id, platform_key, architecture_key, device_label, public_key_raw_b64url,
           key_fingerprint, challenge, challenge_expires_at, proof_verified_at, status,
           requested_plan, customer_name_snapshot, customer_phone_snapshot, customer_notes,
           source, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proof_verified', ?, ?, ?, ?, 'hreq_upload', ?, ?)`
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proof_verified', ?, ?, ?, ?, 'hreq_upload', ?, ?
+         WHERE EXISTS (
+           SELECT 1 FROM devices WHERE id = ? AND product_id = ? AND key_fingerprint = ?
+         )`
       ).bind(requestId, product.id, platform, architecture, deviceLabel, publicKeyText, fingerprint,
-        challenge, challengeExpires, now, requestedPlan, customerName, customerPhone, notes || null, now, now),
+        challenge, challengeExpires, now, requestedPlan, customerName, customerPhone, notes || null, now, now,
+        deviceId, product.id, fingerprint),
       env.DB.prepare(
         `INSERT INTO activation_request_files
          (id, activation_request_id, original_file_name, sha256_hex, size_bytes,
           r2_object_key, validation_status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'valid', ?)`
-      ).bind(crypto.randomUUID(), requestId, file.name.slice(0, 180), fileHash, fileBytes.length, fileKey, now),
+         SELECT ?, ?, ?, ?, ?, ?, 'valid', ?
+         WHERE EXISTS (SELECT 1 FROM activation_requests WHERE id = ?)`
+      ).bind(crypto.randomUUID(), requestId, file.name.slice(0, 180), fileHash, fileBytes.length, fileKey, now, requestId),
     ]);
+    if ((results[1]?.meta.changes ?? 0) !== 1 ||
+        (results[2]?.meta.changes ?? 0) !== 1 ||
+        (results[3]?.meta.changes ?? 0) !== 1) {
+      throw new Error("HREQ records were not created atomically.");
+    }
   } catch {
     await env.FILES.delete(fileKey).catch(() => undefined);
     return fail("HREQ_IMPORT_FAILED", "تعذر تسجيل ملف الطلب؛ لم يتم إنشاء طلب تفعيل.", 409);
