@@ -24,6 +24,8 @@ export default function CustomerManager({apiBase,onError,onNotice}:Props){
   const [busy,setBusy]=useState(false); const [name,setName]=useState(""); const [phone,setPhone]=useState(""); const [notes,setNotes]=useState("");
   const [seats,setSeats]=useState<Record<string,number>>({}); const [requests,setRequests]=useState<ActivationRequest[]>([]);
   const [assigning,setAssigning]=useState(""); const [requestId,setRequestId]=useState("");
+  const [renewalFor,setRenewalFor]=useState(""); const [renewalAmount,setRenewalAmount]=useState(0);
+  const [renewalMethod,setRenewalMethod]=useState("cash"); const [renewalReference,setRenewalReference]=useState("");
   const load=async()=>{
     setBusy(true);onError("");
     try{const r=await api<{items:Customer[]}>(apiBase,"/admin/customers?q="+encodeURIComponent(q)+"&limit=100");setItems(r.items);}
@@ -69,11 +71,32 @@ export default function CustomerManager({apiBase,onError,onNotice}:Props){
       {detail.subscriptions.map(s=><article className="stat-card" key={s.id} style={{marginBottom:12}}>
         <div className="panel-heading"><div><strong>{s.product_name} · {names[s.plan_key]||s.plan_key}</strong><small className="cell-sub">{names[s.status]||s.status} · المقاعد المستخدمة {s.active_seats}/{s.max_devices}</small><small className="cell-sub">ينتهي: {s.ends_at?new Date(s.ends_at).toLocaleDateString("ar"):"دائم / غير محدد"}</small></div>
           {s.status==="active"?<button className="button secondary small" onClick={()=>void run("/admin/subscriptions/"+s.id+"/suspend")}>إيقاف الاشتراك</button>:s.status==="suspended"?<button className="button secondary small" onClick={()=>void run("/admin/subscriptions/"+s.id+"/reactivate")}>إعادة التفعيل</button>:null}
+          {(s.plan_key==="monthly"||s.plan_key==="annual")&&["active","expired"].includes(s.status)&&<button className="button primary small" onClick={()=>setRenewalFor(renewalFor===s.id?"":s.id)}>تجديد الاشتراك</button>}
         </div>
         <div className="filters" style={{justifyContent:"flex-start"}}><label>عدد المقاعد<input type="number" min={1} max={100} value={seats[s.id]??s.max_devices} onChange={e=>setSeats(v=>({...v,[s.id]:Number(e.target.value)}))}/></label>
           <button className="button secondary small" onClick={()=>void run("/admin/subscriptions/"+s.id,{max_devices:seats[s.id]??s.max_devices},"PATCH")}>حفظ السعة</button>
           <button className="button primary small" onClick={()=>void loadRequests(s.id)}>ربط جهاز إضافي</button>
         </div>
+        {renewalFor===s.id&&<div className="form-grid" style={{marginTop:14}}>
+          <label>المبلغ المستلم<input type="number" min={1} step={1} value={renewalAmount} onChange={e=>setRenewalAmount(Number(e.target.value))}/></label>
+          <label>طريقة الدفع<select value={renewalMethod} onChange={e=>setRenewalMethod(e.target.value)}><option value="cash">نقدًا</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
+          <label className="full-span">مرجع الدفع / ملاحظات<input maxLength={500} value={renewalReference} onChange={e=>setRenewalReference(e.target.value)}/></label>
+          <div className="full-span payment-warning">تأكيد التجديد يعني أن الإدارة استلمت المبلغ بالفعل. سيتم تمديد الاشتراك وإعادة توقيع تراخيص الأجهزة المرتبطة.</div>
+          <div className="modal-actions full-span">
+            <button className="button secondary" onClick={()=>setRenewalFor("")}>إلغاء</button>
+            <button className="button primary" disabled={renewalAmount<1} onClick={async()=>{
+              try{
+                await api(apiBase,"/admin/subscriptions/"+s.id+"/renew",{
+                  method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},
+                  body:JSON.stringify({payment_method:renewalMethod,amount_minor:renewalAmount,currency:"SDG",received_at:new Date().toISOString(),reference_note:renewalReference})
+                });
+                setRenewalFor("");setRenewalAmount(0);setRenewalReference("");
+                onNotice("تم تأكيد الدفعة وتجديد الاشتراك وإعادة توقيع التراخيص.");
+                await open(selected);await load();
+              }catch(e){onError(e instanceof Error?e.message:"تعذر تجديد الاشتراك.");}
+            }}>تأكيد الاستلام وتجديد الاشتراك</button>
+          </div>
+        </div>}
         {assigning===s.id&&<div className="filters" style={{justifyContent:"flex-start",marginTop:10}}>
           <select value={requestId} onChange={e=>setRequestId(e.target.value)}><option value="">اختر طلب جهاز مثبت</option>{requests.map(r=><option key={r.id} value={r.id}>{r.device_label} · {r.platform_key} · {r.id.slice(0,8)}</option>)}</select>
           <button className="button primary small" disabled={!requestId} onClick={()=>void run("/admin/subscriptions/"+s.id+"/assign-device",{activation_request_id:requestId})}>تأكيد الربط</button>
