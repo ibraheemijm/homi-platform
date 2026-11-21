@@ -1,4 +1,6 @@
 import type { Env, ActivationRequestRow } from "./types";
+import { authenticateAdmin } from "./security/access";
+import { approveActivationRequest } from "./licensing/issue";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -271,6 +273,61 @@ export default {
     if (!url.pathname.startsWith(API_PREFIX)) return error("NOT_FOUND", "المسار غير موجود.", 404, headers);
 
     const path = url.pathname.slice(API_PREFIX.length);
+
+    if (request.method === "GET" && path === "/admin/me") {
+      const auth = await authenticateAdmin(request, env);
+      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      return json({ admin: auth.actor }, 200, headers);
+    }
+
+    if (request.method === "GET" && path === "/admin/activation-requests") {
+      const auth = await authenticateAdmin(request, env, ["activation_requests.read"]);
+      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      const status = url.searchParams.get("status");
+      const allowedStatuses = new Set(["pending_proof", "proof_verified", "under_review", "approved", "rejected", "cancelled", "expired"]);
+      if (status && !allowedStatuses.has(status)) return error("INVALID_STATUS_FILTER", "حالة الطلب غير صالحة.", 400, headers);
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? "50") || 50, 1), 100);
+      const rows = await env.DB.prepare(
+        `SELECT ar.id, ar.status, ar.platform_key, ar.architecture_key, ar.device_label,
+                ar.key_fingerprint, ar.customer_name_snapshot, ar.customer_phone_snapshot,
+                ar.requested_plan, ar.source, ar.created_at, ar.proof_verified_at
+         FROM activation_requests ar
+         WHERE (? IS NULL OR ar.status = ?)
+         ORDER BY ar.created_at DESC LIMIT ?`
+      ).bind(status, status, limit).all();
+      return json({ items: rows.results ?? [] }, 200, headers);
+    }
+
+    const reviewMatch = path.match(/^\\/admin\\/activation-requests\\/([^/]+)\\/review$/);
+    if (request.method === "POST" && reviewMatch) {
+      const auth = await authenticateAdmin(request, env, ["activation_requests.review"]);
+      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      const requestId = reviewMatch[1];
+      if (!UUID_RE.test(requestId)) return error("NOT_FOUND", "طلب التفعيل غير موجود.", 404, headers);
+      const result = await env.DB.prepare(
+        `UPDATE activation_requests SET status = 'under_review', updated_at = ?
+         WHERE id = ? AND status = 'proof_verified'`
+      ).bind(new Date().toISOString(), requestId).run();
+      if ((result.meta.changes ?? 0) !== 1) return error("REQUEST_NOT_REVIEWABLE", "الطلب غير موجود أو لا يمكن تحويله للمراجعة.", 409, headers);
+      await env.DB.prepare(
+        `INSERT INTO audit_logs (id, actor_admin_id, action_key, entity_type, entity_id, request_id, created_at)
+         VALUES (?, ?, 'activation.mark_under_review', 'activation_request', ?, ?, ?)`
+      ).bind(crypto.randomUUID(), auth.actor.id, requestId, requestId, new Date().toISOString()).run();
+      return json({ activation_request_id: requestId, status: "under_review" }, 200, headers);
+    }
+
+    const approveMatch = path.match(/^\\/admin\\/activation-requests\\/([^/]+)\\/approve$/);
+    if (request.method === "POST" && approveMatch) {
+      const auth = await authenticateAdmin(request, env, [
+        "activation_requests.review", "payments.confirm", "subscriptions.manage", "licenses.issue",
+      ]);
+      if (auth.response) return new Response(auth.response.body, { status: auth.response.status, headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
+      const result = await approveActivationRequest(request, env, approveMatch[1], auth.actor);
+      const responseHeaders = new Headers(result.headers);
+      for (const [key, value] of Object.entries(headers)) responseHeaders.set(key, String(value));
+      return new Response(result.body, { status: result.status, headers: responseHeaders });
+    }
+
     if (request.method === "POST" && path === "/public/activation-requests") {
       return createActivation(request, env, headers);
     }
