@@ -508,7 +508,7 @@ export default {
           !["android", "windows", "linux"].includes(platform || "") ||
           !/^[a-z0-9][a-z0-9._-]{0,31}$/.test(architecture) ||
           !["stable", "beta"].includes(channel) ||
-          !/^\\d{1,10}$/.test(currentVersionCodeText) ||
+          !/^\d{1,10}$/.test(currentVersionCodeText) ||
           !Number.isSafeInteger(currentVersionCode) || currentVersionCode < 0) {
         return error("INVALID_UPDATE_QUERY", "بيانات فحص التحديث غير صالحة.", 400, headers);
       }
