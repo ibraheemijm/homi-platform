@@ -5,6 +5,7 @@ import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-gr
 import { importHreq } from "./activation/hreq";
 import { submitPaymentEvidence } from "./payments/submissions";
 import { handleReleaseAdmin } from "./releases/admin";
+import { createSignedSigningKeyset } from "./licensing/keyset";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -330,6 +331,15 @@ export default {
     if (!url.pathname.startsWith(API_PREFIX)) return error("NOT_FOUND", "المسار غير موجود.", 404, headers);
 
     const path = url.pathname.slice(API_PREFIX.length);
+
+    if (request.method === "GET" && path === "/signing-keyset") {
+      try {
+        const keyset = await createSignedSigningKeyset(env);
+        return json(keyset, 200, { ...headers, "cache-control": "public, max-age=300" });
+      } catch {
+        return error("SIGNING_KEYSET_UNAVAILABLE", "مفاتيح التحقق الموثوقة غير مهيأة لهذه البيئة.", 503, headers);
+      }
+    }
 
     const releaseAdminResponse = await handleReleaseAdmin(request, env, path, headers);
     if (releaseAdminResponse) return withHeaders(releaseAdminResponse, headers);
