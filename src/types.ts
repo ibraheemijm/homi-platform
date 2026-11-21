@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database;
+  FILES?: R2Bucket;
   APP_ENV: string;
   SUPPORT_PHONE: string;
   PUBLIC_SITE_ORIGIN: string;
