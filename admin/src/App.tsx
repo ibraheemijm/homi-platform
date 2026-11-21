@@ -15,6 +15,12 @@ type ActivationRequest = {
   source: string;
   created_at: string;
   proof_verified_at: string | null;
+  payment_submission_id: string | null;
+  payment_status: string | null;
+  payment_method: string | null;
+  payment_amount_minor: number | null;
+  payment_currency: string | null;
+  has_payment_proof: number | null;
 };
 
 type ApprovalForm = {
@@ -27,6 +33,7 @@ type ApprovalForm = {
   currency: string;
   received_at: string;
   reference_note: string;
+  payment_submission_id: string;
 };
 
 const API_BASE = (import.meta.env.VITE_HOMI_API_BASE_URL || "").replace(/\/$/, "");
@@ -59,6 +66,7 @@ function initialApproval(request?: ActivationRequest): ApprovalForm {
     currency: "SDG",
     received_at: localDateTime(),
     reference_note: "",
+    payment_submission_id: request?.payment_status === "confirmed" ? request.payment_submission_id || "" : "",
   };
 }
 
@@ -136,6 +144,25 @@ function App() {
     }
   };
 
+  const confirmPayment = async (item: ActivationRequest) => {
+    if (!item.payment_submission_id) return;
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      await api(`/admin/payment-submissions/${item.payment_submission_id}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setNotice("تم تأكيد استلام إثبات الدفع.");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "تعذر تأكيد الدفع.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const issueLicense = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selected) return;
@@ -145,6 +172,7 @@ function App() {
     try {
       const body = {
         ...form,
+        payment_submission_id: form.payment_submission_id || undefined,
         received_at: new Date(form.received_at).toISOString(),
       };
       const result = await api<{ license_file: Record<string, unknown> }>(
@@ -215,17 +243,25 @@ function App() {
           ) : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>الطلب / العميل</th><th>الجهاز</th><th>بصمة الجهاز</th><th>الحالة</th><th>تاريخ الطلب</th><th>الإجراء</th></tr></thead>
+                <thead><tr><th>الطلب / العميل</th><th>الجهاز</th><th>بصمة الجهاز</th><th>الحالة</th><th>الدفع</th><th>تاريخ الطلب</th><th>الإجراء</th></tr></thead>
                 <tbody>
                   {items.map((item) => <tr key={item.id}>
                     <td><strong>{item.customer_name_snapshot || "عميل جديد"}</strong><small className="cell-sub">{item.customer_phone_snapshot || "لم تُسجل بيانات التواصل بعد"}</small><small className="mono">{item.id}</small></td>
                     <td><strong>{item.device_label}</strong><small className="cell-sub">{item.platform_key} · {item.architecture_key}</small></td>
                     <td><span className="fingerprint" title={item.key_fingerprint}>{item.key_fingerprint.slice(0, 12)}…{item.key_fingerprint.slice(-8)}</span></td>
                     <td><span className={`status status-${item.status}`}>{statusNames[item.status] || item.status}</span></td>
+                    <td>
+                      {item.payment_status ? <span className={`payment-status payment-${item.payment_status}`}>{item.payment_status === "pending_review" ? "بانتظار تأكيد الدفع" : item.payment_status === "confirmed" ? "تم تأكيد الدفع" : "إثبات مرفوض"}</span> : <span className="muted-cell">لا يوجد إثبات</span>}
+                      {item.payment_amount_minor ? <small className="cell-sub">{item.payment_amount_minor} {item.payment_currency || ""}</small> : null}
+                    </td>
                     <td><span className="date">{new Date(item.created_at).toLocaleString("ar")}</span></td>
                     <td><div className="row-actions">
                       {item.status === "proof_verified" && <button className="button secondary small" disabled={saving} onClick={() => void markReview(item)}>بدء المراجعة</button>}
-                      {(item.status === "proof_verified" || item.status === "under_review") && <button className="button primary small" disabled={saving} onClick={() => startApproval(item)}>موافقة وإصدار</button>}
+                      {item.payment_status === "pending_review" && item.payment_submission_id && <>
+                        {item.has_payment_proof === 1 && <a className="button secondary small" href={`${API_BASE}/api/v1/admin/payment-submissions/${item.payment_submission_id}/proof`} target="_blank" rel="noreferrer">عرض الإثبات</a>}
+                        <button className="button secondary small" disabled={saving} onClick={() => void confirmPayment(item)}>تأكيد الدفع</button>
+                      </>}
+                      {(item.status === "proof_verified" || item.status === "under_review") && <button className="button primary small" disabled={saving || (item.payment_status === "pending_review")} onClick={() => startApproval(item)}>موافقة وإصدار</button>}
                       {item.status === "approved" && <span className="done-label">تم الإصدار</span>}
                     </div></td>
                   </tr>)}
@@ -241,18 +277,18 @@ function App() {
       {selected && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setSelected(null); }}>
         <section className="modal" role="dialog" aria-modal="true" aria-labelledby="approval-title">
           <div className="modal-head"><div><span className="eyebrow">APPROVE ACTIVATION</span><h2 id="approval-title">مراجعة وإصدار الترخيص</h2><p>سيتم تسجيل الدفع كمدفوع مؤكد وإصدار ملف .hlic لهذا الجهاز.</p></div><button className="icon-button" onClick={() => setSelected(null)} disabled={saving} aria-label="إغلاق">×</button></div>
-          <div className="device-summary"><span>رقم الطلب</span><code>{selected.id}</code><span>الجهاز</span><strong>{selected.device_label}</strong></div>
+          <div className="device-summary"><span>رقم الطلب</span><code>{selected.id}</code><span>الجهاز</span><strong>{selected.device_label}</strong>{selected.payment_status === "confirmed" && <><span>الدفع</span><strong>إثبات دفع مؤكد · {selected.payment_amount_minor} {selected.payment_currency}</strong></>}</div>
           <form onSubmit={issueLicense}>
             <div className="form-grid">
               <label>اسم العميل / المتجر<input required minLength={2} maxLength={120} value={form.customer_name} onChange={(e) => updateForm("customer_name", e.target.value)} /></label>
               <label>رقم الهاتف<input required type="tel" dir="ltr" placeholder="+249..." value={form.customer_phone} onChange={(e) => updateForm("customer_phone", e.target.value)} /></label>
               <label>نوع الاشتراك<select value={form.plan_key} onChange={(e) => updateForm("plan_key", e.target.value as ApprovalForm["plan_key"])}>{Object.entries(planNames).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
               <label>عدد الأجهزة المسموح بها<input required type="number" min={1} max={100} value={form.max_devices} onChange={(e) => updateForm("max_devices", Number(e.target.value))} /></label>
-              <label>طريقة الدفع<select value={form.payment_method} onChange={(e) => updateForm("payment_method", e.target.value as ApprovalForm["payment_method"])}><option value="cash">نقدًا</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
-              <label>المبلغ المستلم<input required type="number" min={1} step={1} value={form.amount_minor} onChange={(e) => updateForm("amount_minor", Number(e.target.value))} /></label>
-              <label>العملة<input required maxLength={3} minLength={3} dir="ltr" value={form.currency} onChange={(e) => updateForm("currency", e.target.value.toUpperCase())} /></label>
-              <label>تاريخ استلام المبلغ<input required type="datetime-local" value={form.received_at} onChange={(e) => updateForm("received_at", e.target.value)} /></label>
-              <label className="full-span">مرجع الدفع / ملاحظات<input maxLength={500} value={form.reference_note} onChange={(e) => updateForm("reference_note", e.target.value)} /></label>
+              <label>طريقة الدفع<select disabled={Boolean(form.payment_submission_id)} value={form.payment_method} onChange={(e) => updateForm("payment_method", e.target.value as ApprovalForm["payment_method"])}><option value="cash">نقدًا</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
+              <label>المبلغ المستلم<input disabled={Boolean(form.payment_submission_id)} required type="number" min={1} step={1} value={form.amount_minor} onChange={(e) => updateForm("amount_minor", Number(e.target.value))} /></label>
+              <label>العملة<input disabled={Boolean(form.payment_submission_id)} required maxLength={3} minLength={3} dir="ltr" value={form.currency} onChange={(e) => updateForm("currency", e.target.value.toUpperCase())} /></label>
+              <label>تاريخ استلام المبلغ<input disabled={Boolean(form.payment_submission_id)} required type="datetime-local" value={form.received_at} onChange={(e) => updateForm("received_at", e.target.value)} /></label>
+              <label className="full-span">مرجع الدفع / ملاحظات<input disabled={Boolean(form.payment_submission_id)} maxLength={500} value={form.reference_note} onChange={(e) => updateForm("reference_note", e.target.value)} /></label>
             </div>
             <div className="payment-warning">بتأكيد العملية، تقر الإدارة أنها استلمت المبلغ الموضح أعلاه. لا يمكن إصدار الترخيص المدفوع دون هذا التأكيد.</div>
             <div className="modal-actions"><button type="button" className="button secondary" onClick={() => setSelected(null)} disabled={saving}>إلغاء</button><button type="submit" className="button primary" disabled={saving}>{saving ? "جارٍ الإصدار..." : "تأكيد الاستلام وإصدار الترخيص"}</button></div>
