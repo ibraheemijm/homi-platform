@@ -1,5 +1,3 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS customers (
   id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
