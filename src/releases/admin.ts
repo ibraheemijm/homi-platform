@@ -30,7 +30,7 @@ function fail(code: string, message: string, status: number, headers: HeadersIni
 
 function safeFileName(value: string): string | null {
   const name = value.trim();
-  if (!name || name.length > 180 || name.includes("..") || /[\\/\\\\\\u0000-\\u001f]/.test(name)) return null;
+  if (!name || name.length > 180 || name.includes("..") || /[\/\\\\\\u0000-\\u001f]/.test(name)) return null;
   return name;
 }
 
@@ -110,7 +110,7 @@ export async function handleReleaseAdmin(
     return json({ release_id: id, status: "draft" }, 201, headers);
   }
 
-  const startMatch = path.match(/^\\/admin\\/releases\\/([0-9a-f-]{36})\\/uploads$/i);
+  const startMatch = path.match(/^\/admin\/releases\/([0-9a-f-]{36})\/uploads$/i);
   if (request.method === "POST" && startMatch) {
     const releaseId = startMatch[1];
     const release = await env.DB.prepare(
@@ -154,7 +154,7 @@ export async function handleReleaseAdmin(
     return json({ upload_session_id: id, chunk_size_bytes: 8 * 1024 * 1024 }, 201, headers);
   }
 
-  const partMatch = path.match(/^\\/admin\\/release-uploads\\/([0-9a-f-]{36})\\/parts\\/(\\d+)$/i);
+  const partMatch = path.match(/^\/admin\/release-uploads\/([0-9a-f-]{36})\/parts\/(\\d+)$/i);
   if (request.method === "PUT" && partMatch) {
     const session = await env.DB.prepare(
       "SELECT * FROM release_upload_sessions WHERE id = ? AND status = 'uploading' LIMIT 1"
@@ -178,7 +178,7 @@ export async function handleReleaseAdmin(
     return json({ part_number: part.partNumber, etag: part.etag }, 200, headers);
   }
 
-  const completeMatch = path.match(/^\\/admin\\/release-uploads\\/([0-9a-f-]{36})\\/complete$/i);
+  const completeMatch = path.match(/^\/admin\/release-uploads\/([0-9a-f-]{36})\/complete$/i);
   if (request.method === "POST" && completeMatch) {
     const session = await env.DB.prepare(
       "SELECT * FROM release_upload_sessions WHERE id = ? AND status = 'uploading' LIMIT 1"
@@ -205,7 +205,7 @@ export async function handleReleaseAdmin(
       const manifest = new TextEncoder().encode([
         "HOMI_RELEASE_ASSET_V1", session.release_id, session.platform_key,
         session.architecture_key, session.file_name, String(session.size_bytes), session.sha256_hex,
-      ].join("\\n"));
+      ].join("\n"));
       const signature = await signLicensePayload(env, manifest);
       const assetId = crypto.randomUUID();
       const now = new Date().toISOString();
@@ -230,7 +230,7 @@ export async function handleReleaseAdmin(
     }
   }
 
-  const publishMatch = path.match(/^\\/admin\\/releases\\/([0-9a-f-]{36})\\/publish$/i);
+  const publishMatch = path.match(/^\/admin\/releases\/([0-9a-f-]{36})\/publish$/i);
   if (request.method === "POST" && publishMatch) {
     const releaseId = publishMatch[1];
     const release = await env.DB.prepare(
@@ -254,7 +254,7 @@ export async function handleReleaseAdmin(
     return json({ release_id: releaseId, status: "published", published_at: now }, 200, headers);
   }
 
-  const withdrawMatch = path.match(/^\\/admin\\/releases\\/([0-9a-f-]{36})\\/withdraw$/i);
+  const withdrawMatch = path.match(/^\/admin\/releases\/([0-9a-f-]{36})\/withdraw$/i);
   if (request.method === "POST" && withdrawMatch) {
     const releaseId = withdrawMatch[1];
     const now = new Date().toISOString();
