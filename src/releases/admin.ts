@@ -278,10 +278,10 @@ export async function handleReleaseAdmin(
     const updates: D1PreparedStatement[] = [];
     try {
       for (const asset of assetRows) {
-        const downloadPath = `${API_PREFIX}/public/releases/${releaseId}/assets/${asset.id}/download`;
+        const downloadPath = `${API_PREFIX}/updates/${asset.id}/download`;
         const manifest = {
           schema_version: 1,
-          publication_id: releaseId,
+          publication_id: asset.id,
           product_key: release.product_key,
           platform: asset.platform_key,
           architecture: asset.architecture_key,
