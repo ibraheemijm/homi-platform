@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import ReleaseManager from "./ReleaseManager";
+import CustomerManager from "./CustomerManager";
 
 type AdminUser = { id: string; email: string; displayName: string; roleKey: string };
 type ActivationRequest = {
@@ -200,6 +201,7 @@ function App() {
         <a className="brand" href="#"><span className="brand-mark">H</span><span>Homi <small>ADMIN</small></span></a>
         <div className="side-caption">إدارة المنظومة</div>
         <a className="nav-item active" href="#"><span>▦</span> طلبات التفعيل</a>
+        <a className="nav-item" href="#customers"><span>♙</span> العملاء والاشتراكات</a>
         <a className="nav-item" href="#releases"><span>⇧</span> إصدارات التطبيقات</a>
         <div className="side-note">الموقع الإداري محمي عبر Cloudflare Access. صلاحيات العمليات تُحدد من المنصة.</div>
         <div className="sidebar-bottom"><span className="online-dot" /> اتصال لوحة الإدارة</div>
@@ -273,6 +275,7 @@ function App() {
           )}
         </section>
 
+        <CustomerManager apiBase={API_BASE} onError={setError} onNotice={setNotice} />
         <ReleaseManager onError={setError} onNotice={setNotice} />
 
         <footer className="page-footer"><span>Homi Platform · Admin Console</span><span>البيانات التشغيلية للمتجر لا تنتقل إلى هذه المنصة.</span></footer>
