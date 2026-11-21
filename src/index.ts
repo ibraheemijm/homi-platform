@@ -17,9 +17,13 @@ function json(data: unknown, status = 200, headers: HeadersInit = {}): Response 
 
 function corsHeaders(request: Request, env: Env): HeadersInit {
   const origin = request.headers.get("Origin");
-  const allowed = origin && origin === env.PUBLIC_SITE_ORIGIN ? origin : "";
+  const allowedOrigins = [env.PUBLIC_SITE_ORIGIN, env.ADMIN_SITE_ORIGIN].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  const allowed = origin && allowedOrigins.includes(origin) ? origin : "";
   return {
     "access-control-allow-origin": allowed,
+    "access-control-allow-credentials": "true",
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-headers": "content-type, idempotency-key",
     "vary": "Origin",
