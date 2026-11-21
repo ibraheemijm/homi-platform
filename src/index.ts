@@ -497,6 +497,108 @@ export default {
     if (request.method === "POST" && proofMatch) {
       return verifyActivationProof(request, env, proofMatch[1], headers);
     }
+    if (request.method === "GET" && path === "/updates/check") {
+      const productKey = url.searchParams.get("product_key") || "";
+      const platform = url.searchParams.get("platform");
+      const architecture = url.searchParams.get("architecture") || "universal";
+      const channel = url.searchParams.get("channel") || "stable";
+      const currentVersionCodeText = url.searchParams.get("current_version_code") || "0";
+      const currentVersionCode = Number(currentVersionCodeText);
+      if (!/^[a-z0-9-]{2,64}$/.test(productKey) ||
+          !["android", "windows", "linux"].includes(platform || "") ||
+          !/^[a-z0-9][a-z0-9._-]{0,31}$/.test(architecture) ||
+          !["stable", "beta"].includes(channel) ||
+          !/^\\d{1,10}$/.test(currentVersionCodeText) ||
+          !Number.isSafeInteger(currentVersionCode) || currentVersionCode < 0) {
+        return error("INVALID_UPDATE_QUERY", "بيانات فحص التحديث غير صالحة.", 400, headers);
+      }
+      const update = await env.DB.prepare(
+        `SELECT a.id AS publication_id, r.version, r.build_number, r.channel,
+                a.file_name, a.size_bytes, a.sha256_hex, a.signature_key_id
+         FROM products p
+         JOIN product_releases r ON r.product_id = p.id
+         JOIN release_assets a ON a.release_id = r.id
+         WHERE p.product_key = ? AND p.is_active = 1
+           AND r.status = 'published' AND r.channel = ?
+           AND a.platform_key = ? AND a.architecture_key IN (?, 'universal')
+           AND CAST(r.build_number AS INTEGER) > ?
+         ORDER BY CAST(r.build_number AS INTEGER) DESC, r.published_at DESC,
+                  CASE WHEN a.architecture_key = ? THEN 0 ELSE 1 END
+         LIMIT 1`
+      ).bind(productKey, channel, platform, architecture, currentVersionCode, architecture).first<{
+        publication_id: string; version: string; build_number: string; channel: string;
+        file_name: string; size_bytes: number; sha256_hex: string; signature_key_id: string | null;
+      }>();
+      if (!update) return json({ available: false }, 200, headers);
+      const versionCode = Number(update.build_number);
+      if (!update.signature_key_id || !Number.isSafeInteger(versionCode) || versionCode < 1) {
+        return error("UPDATE_MANIFEST_UNAVAILABLE", "بيانات توقيع التحديث غير مكتملة.", 503, headers);
+      }
+      return json({
+        available: true,
+        publication_id: update.publication_id,
+        version: update.version,
+        version_code: versionCode,
+        file_name: update.file_name,
+        size_bytes: update.size_bytes,
+        sha256_hex: update.sha256_hex,
+        signing_key_id: update.signature_key_id,
+      }, 200, headers);
+    }
+
+    const updateManifestMatch = path.match(/^\/updates\/([^/]+)\/manifest$/);
+    if (request.method === "GET" && updateManifestMatch) {
+      const manifest = await env.DB.prepare(
+        `SELECT a.id AS publication_id, a.signature_key_id, a.signature_b64, a.manifest_payload_b64
+         FROM release_assets a
+         JOIN product_releases r ON r.id = a.release_id
+         JOIN products p ON p.id = r.product_id
+         WHERE a.id = ? AND r.status = 'published' AND p.is_active = 1
+         LIMIT 1`
+      ).bind(updateManifestMatch[1]).first<{
+        publication_id: string; signature_key_id: string | null;
+        signature_b64: string | null; manifest_payload_b64: string | null;
+      }>();
+      if (!manifest || !manifest.signature_key_id || !manifest.signature_b64 || !manifest.manifest_payload_b64) {
+        return error("UPDATE_MANIFEST_NOT_FOUND", "بيان التحديث غير موجود أو غير منشور.", 404, headers);
+      }
+      return json({
+        publication_id: manifest.publication_id,
+        key_id: manifest.signature_key_id,
+        manifest: manifest.manifest_payload_b64,
+        signature: manifest.signature_b64,
+      }, 200, headers);
+    }
+
+    const updateDownloadMatch = path.match(/^\/updates\/([^/]+)\/download$/);
+    if (request.method === "GET" && updateDownloadMatch) {
+      if (!env.FILES) return error("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
+      const row = await env.DB.prepare(
+        `SELECT a.r2_object_key, a.file_name, a.content_type, a.size_bytes
+         FROM release_assets a
+         JOIN product_releases r ON r.id = a.release_id
+         JOIN products p ON p.id = r.product_id
+         WHERE a.id = ? AND r.status = 'published' AND p.is_active = 1
+         LIMIT 1`
+      ).bind(updateDownloadMatch[1]).first<{
+        r2_object_key: string; file_name: string; content_type: string; size_bytes: number;
+      }>();
+      if (!row) return error("UPDATE_ASSET_NOT_FOUND", "ملف التحديث غير موجود أو غير منشور.", 404, headers);
+      const object = await env.FILES.get(row.r2_object_key);
+      if (!object) return error("UPDATE_ASSET_NOT_FOUND", "ملف التحديث غير متاح حاليًا.", 404, headers);
+      const safeName = row.file_name.replace(/[^A-Za-z0-9._-]/g, "_");
+      return withHeaders(new Response(object.body, {
+        status: 200,
+        headers: {
+          "content-type": row.content_type,
+          "content-length": String(row.size_bytes),
+          "content-disposition": `attachment; filename="${safeName}"`,
+          "cache-control": "public, max-age=3600",
+          "x-content-type-options": "nosniff",
+        },
+      }), headers);
+    }
+
     const latestReleaseMatch = path.match(/^\/public\/products\/([a-z0-9-]+)\/releases\/latest$/);
     if (request.method === "GET" && latestReleaseMatch) {
       const productKey = latestReleaseMatch[1];
