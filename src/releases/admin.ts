@@ -30,7 +30,7 @@ function fail(code: string, message: string, status: number, headers: HeadersIni
 
 function safeFileName(value: string): string | null {
   const name = value.trim();
-  if (!name || name.length > 180 || name.includes("..") || /[\/\\\\\\u0000-\\u001f]/.test(name)) return null;
+  if (!name || name.length > 180 || name.includes("..") || /[\/\\\x00-\x1f]/.test(name)) return null;
   return name;
 }
 
@@ -154,7 +154,7 @@ export async function handleReleaseAdmin(
     return json({ upload_session_id: id, chunk_size_bytes: 8 * 1024 * 1024 }, 201, headers);
   }
 
-  const partMatch = path.match(/^\/admin\/release-uploads\/([0-9a-f-]{36})\/parts\/(\\d+)$/i);
+  const partMatch = path.match(/^\/admin\/release-uploads\/([0-9a-f-]{36})\/parts\/(\d+)$/i);
   if (request.method === "PUT" && partMatch) {
     const session = await env.DB.prepare(
       "SELECT * FROM release_upload_sessions WHERE id = ? AND status = 'uploading' LIMIT 1"
