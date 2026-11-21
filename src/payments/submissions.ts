@@ -110,17 +110,27 @@ export async function submitPaymentEvidence(
   }
 
   try {
-    await env.DB.prepare(
-      `INSERT INTO payment_submissions
-       (id, activation_request_id, method, amount_minor, currency, reference_note,
-        proof_object_key, proof_file_name, proof_content_type, proof_size_bytes,
-        proof_sha256_hex, status, submitted_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, ?, ?)`
-    ).bind(
-      id, activationRequestId, method, amountMinor, currency, referenceNote || null,
-      proofObjectKey, proofFileName, proofContentType, proofBytes?.length ?? null,
-      proofHash, now, now, now,
-    ).run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO payment_submissions
+         (id, activation_request_id, method, amount_minor, currency, reference_note,
+          proof_object_key, proof_file_name, proof_content_type, proof_size_bytes,
+          proof_sha256_hex, status, submitted_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, ?, ?)`
+      ).bind(
+        id, activationRequestId, method, amountMinor, currency, referenceNote || null,
+        proofObjectKey, proofFileName, proofContentType, proofBytes?.length ?? null,
+        proofHash, now, now, now,
+      ),
+      env.DB.prepare(
+        `INSERT INTO audit_logs
+         (id, actor_admin_id, action_key, entity_type, entity_id, after_json, request_id, created_at)
+         VALUES (?, NULL, 'payment.submitted', 'payment_submission', ?, ?, ?, ?)`
+      ).bind(crypto.randomUUID(), id, JSON.stringify({
+        activation_request_id: activationRequestId, method, amount_minor: amountMinor,
+        currency, has_proof: Boolean(proofObjectKey),
+      }), activationRequestId, now),
+    ]);
   } catch {
     if (proofObjectKey && env.FILES) await env.FILES.delete(proofObjectKey).catch(() => undefined);
     return fail("PAYMENT_SUBMISSION_FAILED", "تعذر تسجيل إثبات الدفع. حاول مرة أخرى.", 409);
