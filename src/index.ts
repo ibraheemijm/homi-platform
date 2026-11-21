@@ -6,6 +6,7 @@ import { importHreq } from "./activation/hreq";
 import { submitPaymentEvidence } from "./payments/submissions";
 import { handleReleaseAdmin } from "./releases/admin";
 import { createSignedSigningKeyset } from "./licensing/keyset";
+import { handleCustomerAdmin } from "./admin/customers";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -343,6 +344,9 @@ export default {
 
     const releaseAdminResponse = await handleReleaseAdmin(request, env, path, headers);
     if (releaseAdminResponse) return withHeaders(releaseAdminResponse, headers);
+
+    const customerAdminResponse = await handleCustomerAdmin(request, env, path, url);
+    if (customerAdminResponse) return withHeaders(customerAdminResponse, headers);
 
     if (request.method === "GET" && path === "/admin/me") {
       const auth = await authenticateAdmin(request, env);
