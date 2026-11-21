@@ -14,14 +14,21 @@ export async function createSignedSigningKeyset(env: Env): Promise<Record<string
   const licensePublicKey = decodePublicKeyDer(env.LICENSE_SIGNING_PUBLIC_KEY_DER_B64);
   const updatePublicKey = decodePublicKeyDer(env.UPDATE_SIGNING_PUBLIC_KEY_DER_B64);
   const now = new Date();
-  const issuedAt = timestamp(now);
-  const expiresAt = timestamp(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
+  const dayMilliseconds = 24 * 60 * 60 * 1000;
+  const utcDay = Math.floor(now.getTime() / dayMilliseconds);
+  const dayStart = new Date(utcDay * dayMilliseconds);
+  // يظل محتوى Keyset ثابتًا طوال اليوم؛ يتغير الإصدار مرة يوميًا لتجنب رفض العميل
+  // لنفس رقم الإصدار مع payload مختلف بسبب أوقات الإصدار المتغيرة.
+  const issuedAt = timestamp(dayStart);
+  const expiresAt = timestamp(new Date((utcDay + 30) * dayMilliseconds));
   // تاريخ صلاحية المفتاح ثابت؛ لا يتغير مع كل تجديد للـKeyset حتى تبقى التواقيع السابقة قابلة للتحقق.
   const notBefore = "2020-01-01T00:00:00.000Z";
   const notAfter = "2099-12-31T23:59:59.000Z";
   const versionText = env.SIGNING_KEYSET_VERSION?.trim() || "1";
-  const version = Number(versionText);
-  if (!Number.isSafeInteger(version) || version < 1) {
+  const versionSeed = Number(versionText);
+  const version = versionSeed + utcDay;
+  if (!Number.isSafeInteger(versionSeed) || versionSeed < 1 ||
+      !Number.isSafeInteger(version) || version < 1) {
     throw new Error("SIGNING_KEYSET_VERSION must be a positive integer.");
   }
 
