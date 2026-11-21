@@ -512,7 +512,7 @@ export default {
         `SELECT r.id AS release_id, r.version, r.build_number, r.channel,
                 r.release_notes_ar, r.release_notes_en, r.published_at,
                 a.id AS asset_id, a.platform_key, a.architecture_key, a.file_name,
-                a.content_type, a.size_bytes, a.sha256_hex, a.signature_key_id, a.signature_b64
+                a.content_type, a.size_bytes, a.sha256_hex, a.signature_key_id, a.signature_b64, a.manifest_payload_b64
          FROM products p
          JOIN product_releases r ON r.product_id = p.id
          JOIN release_assets a ON a.release_id = r.id
@@ -528,7 +528,7 @@ export default {
         release_notes_ar: string | null; release_notes_en: string | null; published_at: string;
         asset_id: string; platform_key: string; architecture_key: string; file_name: string;
         content_type: string; size_bytes: number; sha256_hex: string;
-        signature_key_id: string | null; signature_b64: string | null;
+        signature_key_id: string | null; signature_b64: string | null; manifest_payload_b64: string | null;
       }>();
       if (!release) return error("RELEASE_NOT_FOUND", "لا يوجد إصدار منشور مطابق لهذا الجهاز.", 404, headers);
       return json({
@@ -543,6 +543,7 @@ export default {
           content_type: release.content_type, size_bytes: release.size_bytes,
           sha256: release.sha256_hex, signature_key_id: release.signature_key_id,
           signature: release.signature_b64,
+          manifest: release.manifest_payload_b64,
           download_url: `${API_PREFIX}/public/releases/${release.release_id}/assets/${release.asset_id}/download`,
         },
       }, 200, headers);
