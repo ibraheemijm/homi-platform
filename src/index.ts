@@ -225,17 +225,25 @@ async function verifyActivationProof(request: Request, env: Env, requestId: stri
 async function activationStatus(env: Env, requestId: string, headers: HeadersInit): Promise<Response> {
   if (!UUID_RE.test(requestId)) return error("NOT_FOUND", "طلب التفعيل غير موجود.", 404, headers);
   const row = await env.DB.prepare(
-    `SELECT ar.status, l.id AS license_id, l.device_id, l.key_id, l.status AS license_status,
+    `SELECT ar.status, ar.challenge_expires_at,
+            l.id AS license_id, l.device_id, l.key_id, l.status AS license_status,
             l.payload_b64, l.signature_b64
      FROM activation_requests ar
      LEFT JOIN devices d ON d.product_id = ar.product_id AND d.key_fingerprint = ar.key_fingerprint
      LEFT JOIN licenses l ON l.device_id = d.id AND l.status = 'active'
      WHERE ar.id = ? ORDER BY l.issued_at DESC LIMIT 1`
   ).bind(requestId).first<{
-    status: string; license_id: string | null; device_id: string | null; key_id: string | null;
+    status: string; challenge_expires_at: string;
+    license_id: string | null; device_id: string | null; key_id: string | null;
     license_status: string | null; payload_b64: string | null; signature_b64: string | null;
   }>();
   if (!row) return error("NOT_FOUND", "طلب التفعيل غير موجود.", 404, headers);
+  if (row.status === "pending_proof" && Date.parse(row.challenge_expires_at) <= Date.now()) {
+    await env.DB.prepare(
+      "UPDATE activation_requests SET status = 'expired', updated_at = ? WHERE id = ? AND status = 'pending_proof'"
+    ).bind(new Date().toISOString(), requestId).run();
+    return json({ status: "expired" }, 200, headers);
+  }
   if (row.license_id && row.device_id && row.key_id && row.payload_b64 && row.signature_b64) {
     return json({
       status: "approved",
