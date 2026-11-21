@@ -31,7 +31,7 @@ function corsHeaders(request: Request, env: Env): HeadersInit {
   return {
     "access-control-allow-origin": allowed,
     "access-control-allow-credentials": "true",
-    "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
     "access-control-allow-headers": "content-type, idempotency-key",
     "vary": "Origin",
   };
