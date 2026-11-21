@@ -7,6 +7,7 @@ import { submitPaymentEvidence } from "./payments/submissions";
 import { handleReleaseAdmin } from "./releases/admin";
 import { createSignedSigningKeyset } from "./licensing/keyset";
 import { handleCustomerAdmin } from "./admin/customers";
+import { handleSubscriptionRenewal } from "./admin/renewals";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -344,6 +345,9 @@ export default {
 
     const releaseAdminResponse = await handleReleaseAdmin(request, env, path, headers);
     if (releaseAdminResponse) return withHeaders(releaseAdminResponse, headers);
+
+    const renewalResponse = await handleSubscriptionRenewal(request, env, path);
+    if (renewalResponse) return withHeaders(renewalResponse, headers);
 
     const customerAdminResponse = await handleCustomerAdmin(request, env, path, url);
     if (customerAdminResponse) return withHeaders(customerAdminResponse, headers);
