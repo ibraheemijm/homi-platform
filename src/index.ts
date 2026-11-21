@@ -3,6 +3,7 @@ import { authenticateAdmin } from "./security/access";
 import { approveActivationRequest } from "./licensing/issue";
 import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-grants";
 import { importHreq } from "./activation/hreq";
+import { submitPaymentEvidence } from "./payments/submissions";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -335,6 +336,85 @@ export default {
       return json({ admin: auth.actor }, 200, headers);
     }
 
+    if (request.method === "GET" && path === "/admin/payment-submissions") {
+      const auth = await authenticateAdmin(request, env, ["payments.read"]);
+      if (auth.response) return withHeaders(auth.response, headers);
+      const status = url.searchParams.get("status");
+      const allowed = new Set(["pending_review", "confirmed", "rejected"]);
+      if (status && !allowed.has(status)) return error("INVALID_STATUS_FILTER", "حالة الدفع غير صالحة.", 400, headers);
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? "50") || 50, 1), 100);
+      const rows = await env.DB.prepare(
+        `SELECT ps.id, ps.activation_request_id, ps.method, ps.amount_minor, ps.currency,
+                ps.reference_note, ps.proof_file_name, ps.proof_content_type, ps.proof_size_bytes,
+                ps.status, ps.submitted_at, ps.reviewed_at, ps.review_note,
+                ar.customer_name_snapshot, ar.customer_phone_snapshot, ar.device_label
+         FROM payment_submissions ps
+         JOIN activation_requests ar ON ar.id = ps.activation_request_id
+         WHERE (? IS NULL OR ps.status = ?)
+         ORDER BY ps.submitted_at DESC LIMIT ?`
+      ).bind(status, status, limit).all();
+      return json({ items: rows.results ?? [] }, 200, headers);
+    }
+
+    const paymentProofMatch = path.match(/^\/admin\/payment-submissions\/([^/]+)\/proof$/);
+    if (request.method === "GET" && paymentProofMatch) {
+      const auth = await authenticateAdmin(request, env, ["payments.read"]);
+      if (auth.response) return withHeaders(auth.response, headers);
+      if (!UUID_RE.test(paymentProofMatch[1]) || !env.FILES) return error("PROOF_NOT_FOUND", "إثبات الدفع غير موجود.", 404, headers);
+      const row = await env.DB.prepare(
+        `SELECT proof_object_key, proof_content_type, proof_file_name
+         FROM payment_submissions WHERE id = ? LIMIT 1`
+      ).bind(paymentProofMatch[1]).first<{ proof_object_key: string | null; proof_content_type: string | null; proof_file_name: string | null }>();
+      if (!row?.proof_object_key || !row.proof_content_type) return error("PROOF_NOT_FOUND", "لا يوجد ملف إثبات لهذا الدفع.", 404, headers);
+      const object = await env.FILES.get(row.proof_object_key);
+      if (!object) return error("PROOF_NOT_FOUND", "ملف إثبات الدفع غير متاح.", 404, headers);
+      const safeName = (row.proof_file_name || "payment-proof").replace(/[^A-Za-z0-9._-]/g, "_");
+      const proofResponse = new Response(object.body, {
+        status: 200,
+        headers: {
+          "content-type": row.proof_content_type,
+          "content-disposition": `inline; filename="${safeName}"`,
+          "cache-control": "private, no-store",
+          "x-content-type-options": "nosniff",
+        },
+      });
+      return withHeaders(proofResponse, headers);
+    }
+
+    const paymentDecisionMatch = path.match(/^\/admin\/payment-submissions\/([^/]+)\/(confirm|reject)$/);
+    if (request.method === "POST" && paymentDecisionMatch) {
+      const auth = await authenticateAdmin(request, env, ["payments.confirm"]);
+      if (auth.response) return withHeaders(auth.response, headers);
+      const submissionId = paymentDecisionMatch[1];
+      const decision = paymentDecisionMatch[2];
+      if (!UUID_RE.test(submissionId)) return error("PAYMENT_SUBMISSION_NOT_FOUND", "طلب الدفع غير موجود.", 404, headers);
+      const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+      const reviewNote = typeof body?.review_note === "string" ? body.review_note.trim() : "";
+      if (reviewNote.length > 500) return error("INVALID_REVIEW_NOTE", "الملاحظة أطول من الحد المسموح.", 422, headers);
+      const now = new Date().toISOString();
+      const newStatus = decision === "confirm" ? "confirmed" : "rejected";
+      const results = await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE payment_submissions
+           SET status = ?, reviewed_by = ?, reviewed_at = ?, review_note = ?, updated_at = ?
+           WHERE id = ? AND status = 'pending_review'`
+        ).bind(newStatus, auth.actor.id, now, reviewNote || null, now, submissionId),
+        env.DB.prepare(
+          `INSERT INTO audit_logs
+           (id, actor_admin_id, action_key, entity_type, entity_id, after_json, request_id, created_at)
+           SELECT ?, ?, ?, 'payment_submission', ?, ?, activation_request_id, ?
+           FROM payment_submissions
+           WHERE id = ? AND status = ? AND reviewed_by = ?`
+        ).bind(crypto.randomUUID(), auth.actor.id, `payment_submission.${decision}`,
+          submissionId, JSON.stringify({ status: newStatus, review_note: reviewNote || null }),
+          now, submissionId, newStatus, auth.actor.id),
+      ]);
+      if ((results[0]?.meta.changes ?? 0) !== 1 || (results[1]?.meta.changes ?? 0) !== 1) {
+        return error("PAYMENT_SUBMISSION_NOT_REVIEWABLE", "طلب الدفع غير موجود أو سبق اتخاذ قرار بشأنه.", 409, headers);
+      }
+      return json({ payment_submission_id: submissionId, status: newStatus }, 200, headers);
+    }
+
     if (request.method === "GET" && path === "/admin/activation-requests") {
       const auth = await authenticateAdmin(request, env, ["activation_requests.read"]);
       if (auth.response) return withHeaders(auth.response, headers);
@@ -397,6 +477,14 @@ export default {
     if (request.method === "POST" && proofMatch) {
       return verifyActivationProof(request, env, proofMatch[1], headers);
     }
+    const paymentSubmissionMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/payment-submissions$/);
+    if (request.method === "POST" && paymentSubmissionMatch) {
+      if (!(await rateLimit(request, env, "payment-evidence", 5))) {
+        return error("RATE_LIMITED", "تم تجاوز عدد مرات إرسال إثبات الدفع مؤقتًا.", 429, headers);
+      }
+      return withHeaders(await submitPaymentEvidence(request, env, paymentSubmissionMatch[1]), headers);
+    }
+
     const statusMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/status$/);
     if (request.method === "GET" && statusMatch) {
       return activationStatus(env, statusMatch[1], headers);
