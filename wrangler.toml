@@ -13,5 +13,5 @@ PUBLIC_SITE_ORIGIN = "http://localhost:4321"
 [[d1_databases]]
 binding = "DB"
 database_name = "homi-platform"
-database_id = "SET_AFTER_D1_PROVISIONING"
+database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
