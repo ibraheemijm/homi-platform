@@ -55,7 +55,7 @@ function initialApproval(request?: ActivationRequest): ApprovalForm {
       ? request.requested_plan as ApprovalForm["plan_key"] : "monthly"),
     max_devices: 1,
     payment_method: "cash",
-    amount_minor: 1,
+    amount_minor: 0,
     currency: "SDG",
     received_at: localDateTime(),
     reference_note: "",
