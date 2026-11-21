@@ -110,12 +110,24 @@ async function createActivation(request: Request, env: Env, headers: HeadersInit
   const label = body.device_label;
   const publicKeyText = body.public_key;
   const requestedDeviceId = body.device_id;
+  const customerName = body.customer_name === undefined || body.customer_name === null
+    ? null : typeof body.customer_name === "string" ? body.customer_name.trim() : "";
+  const customerPhone = body.customer_phone === undefined || body.customer_phone === null
+    ? null : typeof body.customer_phone === "string" ? body.customer_phone.trim() : "";
+  const requestedPlan = body.requested_plan === undefined || body.requested_plan === null
+    ? null : body.requested_plan;
+  const customerNotes = body.customer_notes === undefined || body.customer_notes === null
+    ? null : typeof body.customer_notes === "string" ? body.customer_notes.trim() : "";
   if (productKey !== "homi-grocery" ||
       typeof platform !== "string" || !ALLOWED_PLATFORMS.has(platform) ||
       typeof architecture !== "string" || !/^[a-z0-9][a-z0-9._-]{0,31}$/.test(architecture) ||
       typeof label !== "string" || label.length < 2 || label.length > 80 ||
       typeof publicKeyText !== "string" ||
-      (requestedDeviceId !== undefined && (typeof requestedDeviceId !== "string" || !UUID_RE.test(requestedDeviceId)))) {
+      (requestedDeviceId !== undefined && (typeof requestedDeviceId !== "string" || !UUID_RE.test(requestedDeviceId))) ||
+      (customerName !== null && (customerName.length < 2 || customerName.length > 120)) ||
+      (customerPhone !== null && !/^\\+[1-9][0-9]{7,14}$/.test(customerPhone)) ||
+      (requestedPlan !== null && (typeof requestedPlan !== "string" || !["monthly", "annual", "lifetime"].includes(requestedPlan))) ||
+      (customerNotes !== null && customerNotes.length > 500)) {
     return error("INVALID_ACTIVATION_REQUEST", "بيانات طلب التفعيل غير مكتملة أو غير صالحة.", 422, headers);
   }
 
@@ -171,9 +183,11 @@ async function createActivation(request: Request, env: Env, headers: HeadersInit
     env.DB.prepare(
       `INSERT INTO activation_requests
        (id, product_id, platform_key, architecture_key, device_label, public_key_raw_b64url,
-        key_fingerprint, challenge, challenge_expires_at, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_proof', ?, ?)`
-    ).bind(id, product.id, platform, architecture, label, publicKeyText, fingerprint, challenge, expires, now, now),
+        key_fingerprint, challenge, challenge_expires_at, status, customer_name_snapshot,
+        customer_phone_snapshot, requested_plan, customer_notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_proof', ?, ?, ?, ?, ?, ?)`
+    ).bind(id, product.id, platform, architecture, label, publicKeyText, fingerprint,
+      challenge, expires, customerName, customerPhone, requestedPlan, customerNotes, now, now),
   ]);
 
   return json({
