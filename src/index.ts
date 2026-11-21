@@ -4,6 +4,7 @@ import { approveActivationRequest } from "./licensing/issue";
 import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-grants";
 import { importHreq } from "./activation/hreq";
 import { submitPaymentEvidence } from "./payments/submissions";
+import { handleReleaseAdmin } from "./releases/admin";
 
 const API_PREFIX = "/api/v1";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -27,7 +28,7 @@ function corsHeaders(request: Request, env: Env): HeadersInit {
   return {
     "access-control-allow-origin": allowed,
     "access-control-allow-credentials": "true",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
     "access-control-allow-headers": "content-type, idempotency-key",
     "vary": "Origin",
   };
@@ -329,6 +330,9 @@ export default {
     if (!url.pathname.startsWith(API_PREFIX)) return error("NOT_FOUND", "المسار غير موجود.", 404, headers);
 
     const path = url.pathname.slice(API_PREFIX.length);
+
+    const releaseAdminResponse = await handleReleaseAdmin(request, env, path, headers);
+    if (releaseAdminResponse) return withHeaders(releaseAdminResponse, headers);
 
     if (request.method === "GET" && path === "/admin/me") {
       const auth = await authenticateAdmin(request, env);
