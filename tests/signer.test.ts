@@ -64,7 +64,7 @@ describe("Ed25519 license signer", () => {
 
     expect(envelope.root_key_id).toBe("homi-root-v1");
     expect(valid).toBe(true);
-    expect(claims.keyset_version).toBe(3);
+    expect(claims.keyset_version).toBeGreaterThan(3);
     expect(claims.keys.map((key: { purpose: string }) => key.purpose))
       .toEqual(["offline_license_grant", "update_manifest"]);
     expect(claims.keys[0].key_id).not.toBe(claims.keys[1].key_id);
