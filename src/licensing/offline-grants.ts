@@ -189,8 +189,13 @@ export async function issueOfflineGrant(
     env.DB.prepare(
       `INSERT INTO offline_grants
        (id, license_id, device_id, key_id, payload_b64, signature_b64, expires_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(grantId, licenseId, deviceId, signed.keyId, payloadB64, signed.signatureB64, expiresAt, nowIso),
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?
+       WHERE EXISTS (
+         SELECT 1 FROM device_challenges
+         WHERE id = ? AND consumed_at = ?
+       )`
+    ).bind(grantId, licenseId, deviceId, signed.keyId, payloadB64, signed.signatureB64,
+      expiresAt, nowIso, challengeId, nowIso),
   ]);
   if ((results[0]?.meta.changes ?? 0) !== 1) {
     return fail("CHALLENGE_INVALID_OR_EXPIRED", "انتهت صلاحية التحدي أو سبق استخدامه.", 410);
