@@ -75,6 +75,9 @@ export function encodePayloadBase64(payload: Uint8Array): string {
 export function decodePublicKeyDer(value: string | undefined): Uint8Array {
   if (!value) throw new Error("Public signing key is not configured.");
   const decoded = decodeBase64(value.trim());
-  if (decoded.length !== 44) throw new Error("Ed25519 public key must be DER/SPKI (44 bytes).");
+  const spkiPrefix = [0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00];
+  if (decoded.length !== 44 || !spkiPrefix.every((byte, index) => decoded[index] === byte)) {
+    throw new Error("Ed25519 public key must be DER/SPKI (44 bytes).");
+  }
   return decoded;
 }
