@@ -27,6 +27,17 @@ function encodeBase64Url(bytes: Uint8Array): string {
 function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(atob(value), c => c.charCodeAt(0));
 }
+async function parseBody(request: Request): Promise<Record<string, unknown> | null> {
+  const length = Number(request.headers.get("content-length") ?? "0");
+  if (length > 4096) return null;
+  const text = await request.text();
+  if (new TextEncoder().encode(text).length > 4096) return null;
+  try {
+    const value: unknown = JSON.parse(text);
+    return value !== null && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown> : null;
+  } catch { return null; }
+}
 
 export async function createDeviceChallenge(
   request: Request,
@@ -34,7 +45,7 @@ export async function createDeviceChallenge(
   deviceId: string,
 ): Promise<Response> {
   if (!UUID_RE.test(deviceId)) return fail("DEVICE_NOT_LINKED", "الجهاز غير مرتبط بترخيص صالح.", 404);
-  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  const body = await parseBody(request);
   const licenseId = body?.license_id;
   if (typeof licenseId !== "string" || !UUID_RE.test(licenseId) || body?.purpose !== "offline_grant") {
     return fail("INVALID_CHALLENGE_REQUEST", "بيانات تحدي تصريح العمل دون اتصال غير صالحة.", 422);
@@ -57,7 +68,9 @@ export async function createDeviceChallenge(
   if (!row || row.license_status !== "active" || row.device_status !== "active") {
     return fail("DEVICE_NOT_LINKED", "الجهاز أو الترخيص غير نشط.", 403);
   }
-  if (row.plan_key !== "lifetime") {
+  if (row.plan_key === "lifetime") {
+    if (row.subscription_status !== "active") return fail("ACCOUNT_INACTIVE", "الاشتراك الدائم موقوف.", 403);
+  } else {
     const end = row.subscription_ends_at ? Date.parse(row.subscription_ends_at) : Number.NaN;
     const graceEnd = end + 7 * 24 * 60 * 60 * 1000;
     if (!Number.isFinite(end) || Date.now() > graceEnd ||
@@ -121,7 +134,9 @@ export async function issueOfflineGrant(
   if (row.device_status !== "active" || row.license_status !== "active") {
     return fail("LICENSE_REVOKED", "الجهاز أو الترخيص موقوف.", 403);
   }
-  if (row.plan_key !== "lifetime") {
+  if (row.plan_key === "lifetime") {
+    if (row.subscription_status !== "active") return fail("ACCOUNT_INACTIVE", "الاشتراك الدائم موقوف.", 403);
+  } else {
     const end = row.subscription_ends_at ? Date.parse(row.subscription_ends_at) : Number.NaN;
     if (!Number.isFinite(end) || Date.now() > end + 7 * 24 * 60 * 60 * 1000 ||
         !["active", "expired"].includes(row.subscription_status)) {
