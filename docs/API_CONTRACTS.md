@@ -99,3 +99,62 @@ homi-grocery
 - كتالوج التطبيقات والإصدارات وروابط R2.
 
 لا تعتبر المسارات غير المدرجة منفذة حتى تضاف إلى التطبيق والاختبارات.
+
+
+## واجهات الإدارة (Cloudflare Access + RBAC)
+
+جميع المسارات التالية تتطلب JWT صحيحًا في `Cf-Access-Jwt-Assertion`، وتتحقق المنصة من `iss` و`aud` والتوقيع قبل التحقق من المستخدم وصلاحياته في D1.
+
+- `GET /admin/me`: بيانات حساب الإدارة المسجل.
+- `GET /admin/activation-requests?status=proof_verified&limit=50`: قائمة الطلبات.
+- `POST /admin/activation-requests/{id}/review`: تحويل طلب مثبت الجهاز إلى قيد المراجعة.
+- `POST /admin/activation-requests/{id}/approve`: تسجيل استلام دفعة يدوية وإصدار ترخيص موقع.
+
+طلب الموافقة والإصدار:
+
+```json
+{
+  "customer_name": "اسم العميل أو المتجر",
+  "customer_phone": "+249...",
+  "plan_key": "monthly",
+  "max_devices": 1,
+  "payment_method": "cash",
+  "amount_minor": 100000,
+  "currency": "SDG",
+  "received_at": "UTC_ISO_8601",
+  "reference_note": "مرجع الدفع أو ملاحظات"
+}
+```
+
+هذه العملية تتطلب مجتمعة صلاحيات `activation_requests.review` و`payments.confirm` و`subscriptions.manage` و`licenses.issue`. تسجل دفعة بحالة `confirmed` وتصدر ترخيصًا واحدًا مربوطًا بالجهاز الذي اجتاز إثبات الملكية. العملية ذرية وتعيد الترخيص نفسه عند إعادة إرسال الطلب المعتمد.
+
+> قيمة `amount_minor` تسجل كما أدخلتها الإدارة بأصغر وحدة للعملة؛ لا توجد أسعار أو تحويل عملات داخل المنصة في هذه المرحلة.
+
+## تجديد تصريح العمل دون اتصال
+
+- `POST /public/devices/{device_id}/challenges`
+- `POST /public/licenses/{license_id}/devices/{device_id}/offline-grants`
+
+إنشاء التحدي:
+
+```json
+{ "license_id": "UUID", "purpose": "offline_grant" }
+```
+
+استجابة التحدي:
+
+```json
+{ "challenge_id": "UUID", "nonce": "BASE64URL_32_BYTES", "expires_at": "UTC_ISO_8601" }
+```
+
+يوقع التطبيق بايتات nonce الخام بمفتاح Ed25519 الخاص بالجهاز، ثم يرسل:
+
+```json
+{
+  "challenge_id": "UUID",
+  "nonce": "BASE64URL_32_BYTES",
+  "signature": "BASE64URL_ED25519_SIGNATURE"
+}
+```
+
+تستهلك المنصة التحدي مرة واحدة فقط، وتتحقق من توقيع الجهاز، ثم تصدر تصريحًا موقعًا بمفتاح المنصة. لا تمدد المنصة تاريخ الاشتراك؛ التصريح لا يتجاوز تاريخ نهاية الاشتراك ومهلة القراءة والتصدير المحددة.
