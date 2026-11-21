@@ -314,15 +314,18 @@ export default {
       if (auth.response) return withHeaders(auth.response, headers);
       const requestId = reviewMatch[1];
       if (!UUID_RE.test(requestId)) return error("NOT_FOUND", "طلب التفعيل غير موجود.", 404, headers);
-      const result = await env.DB.prepare(
-        `UPDATE activation_requests SET status = 'under_review', updated_at = ?
-         WHERE id = ? AND status = 'proof_verified'`
-      ).bind(new Date().toISOString(), requestId).run();
-      if ((result.meta.changes ?? 0) !== 1) return error("REQUEST_NOT_REVIEWABLE", "الطلب غير موجود أو لا يمكن تحويله للمراجعة.", 409, headers);
-      await env.DB.prepare(
-        `INSERT INTO audit_logs (id, actor_admin_id, action_key, entity_type, entity_id, request_id, created_at)
-         VALUES (?, ?, 'activation.mark_under_review', 'activation_request', ?, ?, ?)`
-      ).bind(crypto.randomUUID(), auth.actor.id, requestId, requestId, new Date().toISOString()).run();
+      const now = new Date().toISOString();
+      const results = await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE activation_requests SET status = 'under_review', updated_at = ?
+           WHERE id = ? AND status = 'proof_verified'`
+        ).bind(now, requestId),
+        env.DB.prepare(
+          `INSERT INTO audit_logs (id, actor_admin_id, action_key, entity_type, entity_id, request_id, created_at)
+           VALUES (?, ?, 'activation.mark_under_review', 'activation_request', ?, ?, ?)`
+        ).bind(crypto.randomUUID(), auth.actor.id, requestId, requestId, now),
+      ]);
+      if ((results[0]?.meta.changes ?? 0) !== 1) return error("REQUEST_NOT_REVIEWABLE", "الطلب غير موجود أو لا يمكن تحويله للمراجعة.", 409, headers);
       return json({ activation_request_id: requestId, status: "under_review" }, 200, headers);
     }
 
