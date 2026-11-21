@@ -125,7 +125,7 @@ async function createActivation(request: Request, env: Env, headers: HeadersInit
       typeof publicKeyText !== "string" ||
       (requestedDeviceId !== undefined && (typeof requestedDeviceId !== "string" || !UUID_RE.test(requestedDeviceId))) ||
       (customerName !== null && (customerName.length < 2 || customerName.length > 120)) ||
-      (customerPhone !== null && !/^\\+[1-9][0-9]{7,14}$/.test(customerPhone)) ||
+      (customerPhone !== null && !/^\+[1-9][0-9]{7,14}$/.test(customerPhone)) ||
       (requestedPlan !== null && (typeof requestedPlan !== "string" || !["monthly", "annual", "lifetime"].includes(requestedPlan))) ||
       (customerNotes !== null && customerNotes.length > 500)) {
     return error("INVALID_ACTIVATION_REQUEST", "بيانات طلب التفعيل غير مكتملة أو غير صالحة.", 422, headers);
