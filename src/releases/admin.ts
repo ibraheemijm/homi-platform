@@ -1,6 +1,6 @@
 import type { Env } from "../types";
 import { authenticateAdmin } from "../security/access";
-import { signUpdatePayload } from "../licensing/signer";
+import { encodePayloadBase64, signUpdatePayload } from "../licensing/signer";
 
 type UploadSession = {
   id: string;
@@ -85,8 +85,8 @@ export async function handleReleaseAdmin(
     const notesAr = typeof body?.release_notes_ar === "string" ? body.release_notes_ar.trim() : "";
     const notesEn = typeof body?.release_notes_en === "string" ? body.release_notes_en.trim() : "";
     if (!/^[a-z0-9-]{2,64}$/.test(productKey) ||
-        !/^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$/.test(version) ||
-        !/^[A-Za-z0-9._-]{1,40}$/.test(buildNumber) ||
+        !/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$/.test(version) ||
+        !/^[0-9]{1,10}$/.test(buildNumber) ||
         !["stable", "beta", "internal"].includes(String(channel)) ||
         notesAr.length > 4000 || notesEn.length > 4000) {
       return fail("INVALID_RELEASE", "بيانات الإصدار غير صالحة.", 422, headers);
@@ -209,22 +209,18 @@ export async function handleReleaseAdmin(
       return fail("UPLOAD_SIZE_MISMATCH", "حجم الملف بعد الرفع لا يطابق الحجم المتوقع.", 409, headers);
     }
     try {
-      const manifest = new TextEncoder().encode([
-        "HOMI_RELEASE_ASSET_V1", session.release_id, session.platform_key,
-        session.architecture_key, session.file_name, String(session.size_bytes), session.sha256_hex,
-      ].join("\n"));
-      const signature = await signUpdatePayload(env, manifest);
       const assetId = crypto.randomUUID();
       const now = new Date().toISOString();
       await env.DB.batch([
         env.DB.prepare(
           `INSERT INTO release_assets
            (id, release_id, platform_key, architecture_key, file_name, content_type, size_bytes,
-            sha256_hex, r2_object_key, signature_key_id, signature_b64, is_primary, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`
+            sha256_hex, r2_object_key, signature_key_id, signature_b64, manifest_payload_b64,
+            is_primary, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 1, ?)`
         ).bind(assetId, session.release_id, session.platform_key, session.architecture_key,
           session.file_name, session.content_type, session.size_bytes, session.sha256_hex,
-          session.object_key, signature.keyId, signature.signatureB64, now),
+          session.object_key, now),
         env.DB.prepare("UPDATE release_upload_sessions SET status = 'completed', updated_at = ? WHERE id = ?")
           .bind(now, session.id),
         env.DB.prepare(
@@ -236,12 +232,12 @@ export async function handleReleaseAdmin(
           size_bytes: session.size_bytes, sha256_hex: session.sha256_hex,
         }), now),
       ]);
-      return json({ asset_id: assetId, status: "uploaded", sha256: session.sha256_hex, signature_key_id: signature.keyId }, 201, headers);
+      return json({ asset_id: assetId, status: "uploaded", sha256: session.sha256_hex }, 201, headers);
     } catch {
       await env.FILES.delete(session.object_key);
       await env.DB.prepare("UPDATE release_upload_sessions SET status = 'failed', updated_at = ? WHERE id = ?")
         .bind(new Date().toISOString(), session.id).run();
-      return fail("RELEASE_SIGNING_FAILED", "تعذر توقيع بيانات ملف الإصدار. تحقق من إعداد مفتاح التوقيع.", 503, headers);
+      return fail("RELEASE_ASSET_SAVE_FAILED", "تعذر حفظ ملف الإصدار وبياناته.", 503, headers);
     }
   }
 
@@ -249,22 +245,73 @@ export async function handleReleaseAdmin(
   if (request.method === "POST" && publishMatch) {
     const releaseId = publishMatch[1];
     const release = await env.DB.prepare(
-      "SELECT id, status FROM product_releases WHERE id = ? LIMIT 1"
-    ).bind(releaseId).first<{ id: string; status: string }>();
+      `SELECT r.id, r.status, r.version, r.build_number, r.channel,
+              r.release_notes_ar, r.release_notes_en, p.product_key
+       FROM product_releases r JOIN products p ON p.id = r.product_id
+       WHERE r.id = ? LIMIT 1`
+    ).bind(releaseId).first<{
+      id: string; status: string; version: string; build_number: string; channel: string;
+      release_notes_ar: string | null; release_notes_en: string | null; product_key: string;
+    }>();
     if (!release) return fail("RELEASE_NOT_FOUND", "الإصدار غير موجود.", 404, headers);
     if (release.status !== "draft") return fail("RELEASE_NOT_EDITABLE", "الإصدار ليس مسودة.", 409, headers);
+    const versionCode = Number(release.build_number);
+    if (!Number.isSafeInteger(versionCode) || versionCode < 1 || versionCode > 0x7fffffff) {
+      return fail("INVALID_BUILD_NUMBER", "رقم البناء يجب أن يكون عددًا صحيحًا موجبًا.", 422, headers);
+    }
     const assets = await env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM release_assets WHERE release_id = ?"
-    ).bind(releaseId).first<{ count: number }>();
-    if (!assets || assets.count < 1) return fail("RELEASE_ASSET_REQUIRED", "أضف ملف تثبيت واحدًا على الأقل قبل النشر.", 409, headers);
+      `SELECT id, platform_key, architecture_key, file_name, size_bytes, sha256_hex
+       FROM release_assets WHERE release_id = ? ORDER BY platform_key, architecture_key`
+    ).bind(releaseId).all<{
+      id: string; platform_key: string; architecture_key: string;
+      file_name: string; size_bytes: number; sha256_hex: string;
+    }>();
+    const assetRows = assets.results ?? [];
+    if (assetRows.length < 1) return fail("RELEASE_ASSET_REQUIRED", "أضف ملف تثبيت واحدًا على الأقل قبل النشر.", 409, headers);
     const now = new Date().toISOString();
+    const updates: D1PreparedStatement[] = [];
+    try {
+      for (const asset of assetRows) {
+        const downloadPath = `${API_PREFIX}/public/releases/${releaseId}/assets/${asset.id}/download`;
+        const manifest = {
+          schema_version: 1,
+          publication_id: releaseId,
+          product_key: release.product_key,
+          platform: asset.platform_key,
+          architecture: asset.architecture_key,
+          channel: release.channel,
+          version: release.version,
+          version_code: versionCode,
+          file_name: asset.file_name,
+          size_bytes: asset.size_bytes,
+          sha256: asset.sha256_hex,
+          key_id: env.UPDATE_SIGNING_KEY_ID,
+          download_url: downloadPath,
+          published_at: now,
+          release_notes: release.release_notes_en || release.release_notes_ar || null,
+        };
+        const payload = new TextEncoder().encode(JSON.stringify(manifest));
+        const signature = await signUpdatePayload(env, payload);
+        updates.push(env.DB.prepare(
+          `UPDATE release_assets
+           SET signature_key_id = ?, signature_b64 = ?, manifest_payload_b64 = ?
+           WHERE id = ? AND release_id = ?`
+        ).bind(signature.keyId, signature.signatureB64, encodePayloadBase64(payload), asset.id, releaseId));
+      }
+    } catch {
+      return fail("RELEASE_SIGNING_FAILED", "تعذر توقيع بيانات الإصدار. تحقق من مفتاح تحديثات Ed25519.", 503, headers);
+    }
     await env.DB.batch([
+      ...updates,
       env.DB.prepare("UPDATE product_releases SET status = 'published', published_at = ?, updated_at = ? WHERE id = ? AND status = 'draft'")
         .bind(now, now, releaseId),
       env.DB.prepare(
         `INSERT INTO audit_logs (id, actor_admin_id, action_key, entity_type, entity_id, after_json, created_at)
          VALUES (?, ?, 'release.published', 'product_release', ?, ?, ?)`
-      ).bind(crypto.randomUUID(), auth.actor!.id, releaseId, JSON.stringify({ status: "published" }), now),
+      ).bind(crypto.randomUUID(), auth.actor!.id, releaseId, JSON.stringify({
+        status: "published", asset_count: assetRows.length, version: release.version,
+        build_number: release.build_number, channel: release.channel,
+      }), now),
     ]);
     return json({ release_id: releaseId, status: "published", published_at: now }, 200, headers);
   }
