@@ -65,7 +65,7 @@ export async function importHreq(request: Request, env: Env): Promise<Response> 
 
   let payload: Record<string, unknown>;
   try {
-    const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(payloadBytes));
+    const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(payloadBytes));
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
     payload = parsed as Record<string, unknown>;
   } catch {
