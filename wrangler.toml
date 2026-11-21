@@ -1,0 +1,17 @@
+name = "homi-platform-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-21"
+workers_dev = true
+
+[vars]
+APP_ENV = "development"
+SUPPORT_PHONE = "+2490904697455"
+PUBLIC_SITE_ORIGIN = "http://localhost:4321"
+
+# أنشئ D1 مستقلة لكل بيئة، ثم استبدل القيمة التالية بمعرف القاعدة الفعلي.
+# لا تستخدم قاعدة الإنتاج في التطوير المحلي.
+[[d1_databases]]
+binding = "DB"
+database_name = "homi-platform"
+database_id = "SET_AFTER_D1_PROVISIONING"
+migrations_dir = "migrations"
