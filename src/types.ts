@@ -9,6 +9,13 @@ export interface Env {
   CF_ACCESS_AUD?: string;
   LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
   LICENSE_SIGNING_KEY_ID?: string;
+  LICENSE_SIGNING_PUBLIC_KEY_DER_B64?: string;
+  UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
+  UPDATE_SIGNING_KEY_ID?: string;
+  UPDATE_SIGNING_PUBLIC_KEY_DER_B64?: string;
+  ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
+  ROOT_SIGNING_KEY_ID?: string;
+  SIGNING_KEYSET_VERSION?: string;
 }
 
 export interface ActivationRequestRow {
