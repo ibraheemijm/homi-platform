@@ -108,11 +108,13 @@ async function createActivation(request: Request, env: Env, headers: HeadersInit
   const architecture = body.architecture_key;
   const label = body.device_label;
   const publicKeyText = body.public_key;
+  const requestedDeviceId = body.device_id;
   if (productKey !== "homi-grocery" ||
       typeof platform !== "string" || !ALLOWED_PLATFORMS.has(platform) ||
       typeof architecture !== "string" || !/^[a-z0-9][a-z0-9._-]{0,31}$/.test(architecture) ||
       typeof label !== "string" || label.length < 2 || label.length > 80 ||
-      typeof publicKeyText !== "string") {
+      typeof publicKeyText !== "string" ||
+      (requestedDeviceId !== undefined && (typeof requestedDeviceId !== "string" || !UUID_RE.test(requestedDeviceId)))) {
     return error("INVALID_ACTIVATION_REQUEST", "بيانات طلب التفعيل غير مكتملة أو غير صالحة.", 422, headers);
   }
 
@@ -147,6 +149,7 @@ async function createActivation(request: Request, env: Env, headers: HeadersInit
   }
 
   const id = crypto.randomUUID();
+  const deviceId = typeof requestedDeviceId === "string" ? requestedDeviceId : id;
   const challengeBytes = crypto.getRandomValues(new Uint8Array(32));
   const challenge = b64url(challengeBytes);
   const now = new Date().toISOString();
