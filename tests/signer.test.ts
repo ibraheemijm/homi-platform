@@ -43,9 +43,9 @@ describe("Ed25519 license signer", () => {
     const root = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
     const license = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
     const update = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
-    const rootPrivate = new Uint8Array(await crypto.subtle.exportKey("pkcs8", root.privateKey));
-    const licensePublic = new Uint8Array(await crypto.subtle.exportKey("spki", license.publicKey));
-    const updatePublic = new Uint8Array(await crypto.subtle.exportKey("spki", update.publicKey));
+    const rootPrivate = new Uint8Array(await crypto.subtle.exportKey("pkcs8" as const, root.privateKey) as ArrayBuffer);
+    const licensePublic = new Uint8Array(await crypto.subtle.exportKey("spki" as const, license.publicKey) as ArrayBuffer);
+    const updatePublic = new Uint8Array(await crypto.subtle.exportKey("spki" as const, update.publicKey) as ArrayBuffer);
     const env = {
       ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64: base64(rootPrivate),
       ROOT_SIGNING_KEY_ID: "homi-root-v1",
