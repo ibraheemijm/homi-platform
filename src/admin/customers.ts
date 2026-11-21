@@ -139,8 +139,8 @@ export async function handleCustomerAdmin(
     }
     const now = new Date().toISOString();
     const results = await env.DB.batch([
-      env.DB.prepare("UPDATE subscriptions SET max_devices = ?, updated_at = ? WHERE id = ? AND max_devices = ?")
-        .bind(body.max_devices, now, subscriptionId, sub.max_devices),
+      env.DB.prepare("UPDATE subscriptions SET max_devices = ?, updated_at = ? WHERE id = ? AND max_devices = ? AND (SELECT COUNT(*) FROM licenses WHERE subscription_id = ? AND status = 'active') <= ?")
+        .bind(body.max_devices, now, subscriptionId, sub.max_devices, subscriptionId, body.max_devices),
       env.DB.prepare(
         `INSERT INTO audit_logs (id, actor_admin_id, action_key, entity_type, entity_id, before_json, after_json, created_at)
          SELECT ?, ?, 'subscription.seats_changed', 'subscription', ?, ?, ?, ?
@@ -235,11 +235,15 @@ export async function handleCustomerAdmin(
          FROM subscriptions s
          WHERE s.id = ? AND s.status = 'active'
            AND (s.ends_at IS NULL OR s.ends_at > ?)
-           AND (SELECT COUNT(*) FROM licenses l WHERE l.subscription_id = s.id AND l.status = 'active') < s.max_devices`
-      ).bind(licenseId,row.device_id,signed.keyId,payloadB64,signed.signatureB64,now,startsAt,endsAt,requestId,now,subscriptionId,now),
+           AND (SELECT COUNT(*) FROM licenses l WHERE l.subscription_id = s.id AND l.status = 'active') < s.max_devices
+           AND EXISTS (SELECT 1 FROM devices d WHERE d.id = ? AND d.status IN ('pending','active')
+             AND (d.customer_id IS NULL OR d.customer_id = s.customer_id))
+           AND EXISTS (SELECT 1 FROM activation_requests ar WHERE ar.id = ?
+             AND ar.status IN ('proof_verified','under_review') AND ar.proof_verified_at IS NOT NULL)`
+      ).bind(licenseId,row.device_id,signed.keyId,payloadB64,signed.signatureB64,now,startsAt,endsAt,requestId,now,subscriptionId,now,row.device_id,requestId),
       env.DB.prepare(
         `UPDATE devices SET customer_id = ?, status = 'active', updated_at = ?
-         WHERE id = ? AND (customer_id IS NULL OR customer_id = ?)
+         WHERE id = ? AND status IN ('pending','active') AND (customer_id IS NULL OR customer_id = ?)
            AND EXISTS (SELECT 1 FROM licenses WHERE id = ?)`
       ).bind(row.customer_id,now,row.device_id,row.customer_id,licenseId),
       env.DB.prepare(
