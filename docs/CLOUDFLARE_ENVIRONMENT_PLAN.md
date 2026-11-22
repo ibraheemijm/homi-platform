@@ -112,3 +112,34 @@ Binding الحالي: FILES.
 - اعتماد خطة الاحتفاظ بملفات إثبات الدفع وحذفها بعد انتهاء الغرض منها.
 
 حتى صدور هذه الموافقات، تبقى كل الخطوات محلية وعلى CI فقط.
+
+## 11. حالة تجهيز Preview الفعلية — 2026-11-22
+
+### موارد أُنشئت
+
+- D1: `homi-platform-preview` — المعرف `c9afd3d8-3490-4288-a178-c8ded7a851eb`.
+- طبقت ترحيلات `0001` إلى `0010` على قاعدة Preview فقط، وسجلت في `d1_migrations`.
+- Pages Preview projects:
+  - `homi-platform-api-test` — API adapter عبر Pages Functions على فرع `foundation/platform-api-v1`.
+  - `homi-public-preview` — الموقع على فرع `foundation/public-site-v1`.
+  - `homi-admin-console-preview` — لوحة الإدارة على فرع `foundation/platform-api-v1`.
+- إعداد كل مشروع يمنع نشر فرع `main` للإنتاج؛ النشر الآلي محصور في فرع Preview المحدد.
+- Cloudflare Access organization: `homi-test.cloudflareaccess.com`.
+- أنشئت سياسات وصول تقصر الموقع ولوحة الإدارة ومسارات الإدارة API على هوية مالك المنظومة فقط.
+- أضيف مالك المنظومة بدور `owner` إلى قاعدة Preview.
+- ولدت مفاتيح Ed25519 منفصلة للتراخيص والتحديث وجذر الثقة، وخزنت المفاتيح الخاصة كـ `secret_text` في إعدادات API Preview، لا في Git.
+
+### ما لم يكتمل بعد
+
+- خدمة R2 غير مفعلة على الحساب؛ محاولة إنشاء bucket الاختبار أعادت مطالبة بتفعيل R2 من لوحة Cloudflare. لم ينشأ أي bucket بعد.
+- Cloudflare Pages استقبل أحداث GitHub للفروع الثلاثة، لكن أحدث deployments بقيت في حالة `queued/idle` مع سجل `Starting build...` ولم تصل إلى مرحلة build أو deploy عند آخر تحقق.
+- لذلك لا توجد حتى الآن روابط Preview مؤكدة تعمل، ولا يجوز اعتبار API أو الموقع أو لوحة الإدارة منشورة.
+- Android workflow الذي يضم عنوان API ومفاتيح الثقة العامة قيد التنفيذ؛ لم يصدر APK جديد صالح للتجربة الحية بعد.
+- لا يوجد نشر Production، ولا تم تعديل أو حذف المشاريع القديمة `homi-platform-preview` أو `homi-website-preview` أو Worker `cvora`.
+
+### متابعة مطلوبة
+
+1. تفعيل R2 من لوحة الحساب، ثم إنشاء `homi-platform-preview-files` وربطه باسم `FILES` في API Preview.
+2. تشخيص توقف Pages builds في قائمة Deployments؛ لا تعاد محاولة النشر إلى Production.
+3. بعد نجاح Preview deployments، اختبار `/api/v1/signing-keyset` وطلب تسجيل التجربة ثم HREQ والدفع اليدوي وإصدار HLIC.
+4. إعادة بناء Android RC بعد اعتماد عنوان API النهائي، ثم اختبار التفعيل الفعلي على جهاز المستخدم.
