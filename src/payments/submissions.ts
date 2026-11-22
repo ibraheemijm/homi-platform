@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { getStorage } from "../storage/backblaze";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_PROOF_BYTES = 8 * 1024 * 1024;
@@ -68,7 +69,8 @@ export async function submitPaymentEvidence(
   if (method === "bank_transfer" && !proofBytes) {
     return fail("PAYMENT_PROOF_REQUIRED", "يرجى إرفاق صورة أو PDF لإثبات التحويل البنكي.", 422);
   }
-  if (proofBytes && !env.FILES) {
+  const storage = getStorage(env);
+  if (proofBytes && !storage) {
     return fail("FILE_STORAGE_UNAVAILABLE", "تخزين إثباتات الدفع غير مهيأ لهذه البيئة.", 503);
   }
 
@@ -100,10 +102,10 @@ export async function submitPaymentEvidence(
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   let proofObjectKey: string | null = null;
-  if (proofBytes && proofHash && proofContentType && proofFileName && env.FILES) {
+  if (proofBytes && proofHash && proofContentType && proofFileName && storage) {
     const extension = MIME_EXTENSIONS[proofContentType];
     proofObjectKey = `payment-evidence/${activationRequestId}/${id}/${proofHash}.${extension}`;
-    await env.FILES.put(proofObjectKey, proofBytes, {
+    await storage.put(proofObjectKey, proofBytes, {
       httpMetadata: { contentType: proofContentType },
       customMetadata: { activationRequestId, paymentSubmissionId: id, sha256: proofHash },
     });
@@ -132,7 +134,7 @@ export async function submitPaymentEvidence(
       }), activationRequestId, now),
     ]);
   } catch {
-    if (proofObjectKey && env.FILES) await env.FILES.delete(proofObjectKey).catch(() => undefined);
+    if (proofObjectKey && env.FILES) await storage.delete(proofObjectKey).catch(() => undefined);
     return fail("PAYMENT_SUBMISSION_FAILED", "تعذر تسجيل إثبات الدفع. حاول مرة أخرى.", 409);
   }
 
