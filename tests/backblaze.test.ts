@@ -43,9 +43,9 @@ describe("Backblaze B2 S3 storage adapter", () => {
 
     expect(captured.url).toContain("s3.us-west-004.backblazeb2.com/homi-preview-files/activation-requests/");
     expect(captured.headers.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");
-    expect(capturedHeaders?.get("x-amz-content-sha256")).toMatch(/^[a-f0-9]{64}$/);
-    expect(capturedHeaders?.get("x-amz-meta-requestid")).toBe("request-1");
-    expect(capturedHeaders?.get("authorization")).not.toContain("test-secret-key");
+    expect(captured.headers.get("x-amz-content-sha256")).toMatch(/^[a-f0-9]{64}$/);
+    expect(captured.headers.get("x-amz-meta-requestid")).toBe("request-1");
+    expect(captured.headers.get("authorization")).not.toContain("test-secret-key");
   });
 
   it("creates, uploads, and completes an S3 multipart upload", async () => {
