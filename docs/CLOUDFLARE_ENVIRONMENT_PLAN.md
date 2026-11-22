@@ -4,9 +4,9 @@
 
 ## 1. المبادئ
 
-- استخدام Cloudflare فقط للبنية المركزية: Workers وD1 وR2 وAccess.
+- استخدام Cloudflare لـWorkers وD1 وAccess، مع Backblaze B2 كمخزن كائنات خاص عبر S3-compatible API لتجنب اشتراط وسيلة دفع في R2.
 - لا Neon أو Firebase أو Supabase.
-- فصل بيئات Local وPreview وProduction؛ لا تشترك في قاعدة D1 أو مخزن R2.
+- فصل بيئات Local وPreview وProduction؛ لا تشترك في قاعدة D1 أو Bucket B2.
 - لا حسابات عملاء ولا بريد أو OTP في تدفق تفعيل Grocery.
 - لا مفاتيح خاصة في GitHub أو داخل التطبيق أو الموقع. تحفظ مفاتيح التوقيع في Worker Secrets.
 - لا نشر إنتاجي قبل اختبار Preview، ومراجعة migration والنسخ الاحتياطي.
@@ -18,8 +18,8 @@
 | Cloudflare Worker | homi-platform-api | API المركزي وإصدار التراخيص وإدارة الإصدارات |
 | D1 | homi-platform-preview | قاعدة اختبار Preview مستقلة |
 | D1 | homi-platform-production | قاعدة الإنتاج المستقلة |
-| R2 | homi-platform-files-preview | ملفات HREQ وإثباتات الدفع وحزم الاختبار |
-| R2 | homi-platform-files | ملفات HREQ وإثباتات الدفع وحزم الإصدارات |
+| Backblaze B2 | homi-platform-files-preview | ملفات HREQ وإثباتات الدفع وحزم الاختبار (Bucket خاص) |
+| Backblaze B2 | homi-platform-files | ملفات HREQ وإثباتات الدفع وحزم الإصدارات (Bucket خاص) |
 | Cloudflare Access Application | Homi Admin | حماية لوحة الإدارة ومسارات الإدارة فقط |
 
 لا توجد حاجة حالية إلى KV أو Queues؛ تحديد المعدل وتسجيل الأحداث يعتمدان على D1 في البنية الحالية. يعاد تقييم ذلك فقط إذا ظهر ضغط تشغيلي يبرر خدمة إضافية.
@@ -43,7 +43,7 @@ Binding الحالي: FILES.
 - payment-evidence/: إثباتات الدفع اليدوي.
 - releases/: حزم الإصدارات المنشورة.
 
-يظل المخزن خاصًا؛ لا تستخدم روابط R2 عامة ثابتة. يمر تنزيل الحزم المنشورة عبر Worker بعد التحقق من حالة الإصدار. لا ترفع ملفات عملاء حقيقية أثناء الاختبارات الأولية.
+يظل المخزن خاصًا؛ لا تستخدم روابط عامة ثابتة أو تجعل الـBucket عامًا. يمر تنزيل الحزم المنشورة عبر Worker بعد التحقق من حالة الإصدار. لا ترفع ملفات عملاء حقيقية أثناء الاختبارات الأولية.
 
 ## 5. متغيرات Worker
 
@@ -95,7 +95,7 @@ Binding الحالي: FILES.
 ## 9. تسلسل التنفيذ بعد الموافقة
 
 1. تأكيد أسماء الموارد والبيئات والنطاقات المتاحة.
-2. إنشاء D1 وR2 لبيئة Preview فقط.
+2. إنشاء D1 وBucket Backblaze B2 خاص لبيئة Preview فقط.
 3. إعداد Worker Preview وBindings وAccess.
 4. توليد مفاتيح Ed25519 خارج GitHub، ثم إدخال الأسرار في Preview.
 5. تطبيق migrations على D1 Preview والتحقق من الجداول.
@@ -131,7 +131,7 @@ Binding الحالي: FILES.
 
 ### ما لم يكتمل بعد
 
-- خدمة R2 غير مفعلة على الحساب؛ محاولة إنشاء bucket الاختبار أعادت مطالبة بتفعيل R2 من لوحة Cloudflare. لم ينشأ أي bucket بعد.
+- لم يتم إنشاء Bucket Backblaze B2 أو Application Key بعد؛ يلزم إتمام إعداد حساب B2 وBucket الاختبار قبل اختبار التخزين.
 - Cloudflare Pages استقبل أحداث GitHub للفروع الثلاثة، لكن أحدث deployments بقيت في حالة `queued/idle` مع سجل `Starting build...` ولم تصل إلى مرحلة build أو deploy عند آخر تحقق.
 - لذلك لا توجد حتى الآن روابط Preview مؤكدة تعمل، ولا يجوز اعتبار API أو الموقع أو لوحة الإدارة منشورة.
 - Android workflow الذي يضم عنوان API ومفاتيح الثقة العامة قيد التنفيذ؛ لم يصدر APK جديد صالح للتجربة الحية بعد.
@@ -139,7 +139,7 @@ Binding الحالي: FILES.
 
 ### متابعة مطلوبة
 
-1. تفعيل R2 من لوحة الحساب، ثم إنشاء `homi-platform-preview-files` وربطه باسم `FILES` في API Preview.
+1. إنشاء Bucket خاص في Backblaze B2 ومفتاح تطبيق محدود، ثم ضبط متغيرات B2 وأسرارها في API Preview.
 2. تشخيص توقف Pages builds في قائمة Deployments؛ لا تعاد محاولة النشر إلى Production.
 3. بعد نجاح Preview deployments، اختبار `/api/v1/signing-keyset` وطلب تسجيل التجربة ثم HREQ والدفع اليدوي وإصدار HLIC.
 4. إعادة بناء Android RC بعد اعتماد عنوان API النهائي، ثم اختبار التفعيل الفعلي على جهاز المستخدم.
