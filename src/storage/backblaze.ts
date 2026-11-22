@@ -77,7 +77,7 @@ class BackblazeS3Storage {
     const path = `/${awsEncode(this.bucket)}/${key.split("/").map(awsEncode).join("/")}`;
     const encodedQuery = query
       .map(([name, value]): [string, string] => [awsEncode(name), awsEncode(value)])
-      .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]))
+      .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0)
       .map(([name, value]) => `${name}=${value}`)
       .join("&");
     const url = new URL(`${this.endpoint.origin}${path}${encodedQuery ? `?${encodedQuery}` : ""}`);
