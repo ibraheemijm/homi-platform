@@ -63,7 +63,7 @@ describe("Homi Platform activation API routes", () => {
     });
   });
 
-  it("requires configured R2 storage before accepting an HREQ upload", async () => {
+  it("requires configured Backblaze storage before accepting an HREQ upload", async () => {
     const response = await worker.fetch(
       new Request("https://api.homi.example/api/v1/public/activation-requests/import", {
         method: "POST",
