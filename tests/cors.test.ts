@@ -37,7 +37,7 @@ describe("Homi Platform CORS policy", () => {
       headers: { Origin: "https://attacker.example" },
     });
 
-    const response = await worker.fetch(request, env, {} as ExecutionContext);
+    const response = await worker.fetch(request, env);
 
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe("");
