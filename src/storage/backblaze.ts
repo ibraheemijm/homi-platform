@@ -76,13 +76,13 @@ class BackblazeS3Storage {
   ): Promise<Response> {
     const path = `/${awsEncode(this.bucket)}/${key.split("/").map(awsEncode).join("/")}`;
     const encodedQuery = query
-      .map(([name, value]) => [awsEncode(name), awsEncode(value)] as const)
+      .map(([name, value]): [string, string] => [awsEncode(name), awsEncode(value)] as const)
       .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]))
       .map(([name, value]) => `${name}=${value}`)
       .join("&");
     const url = new URL(`${this.endpoint.origin}${path}${encodedQuery ? `?${encodedQuery}` : ""}`);
     const now = new Date();
-    const amzDate = now.toISOString().replace(/[:-]|\\.\\d{3}/g, "");
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
     const dateStamp = amzDate.slice(0, 8);
     const payloadHash = await sha256(body ?? "");
     const headers = new Headers({
@@ -91,7 +91,7 @@ class BackblazeS3Storage {
     });
     if (contentType) headers.set("content-type", contentType);
     for (const [name, value] of Object.entries(metadata ?? {})) {
-      if (!/^[a-z0-9-]{1,64}$/i.test(name) || /[\\r\\n]/.test(value)) {
+      if (!/^[a-z0-9-]{1,64}$/i.test(name) || /[\r\n]/.test(value)) {
         throw new Error("Invalid object metadata.");
       }
       headers.set(`x-amz-meta-${name.toLowerCase()}`, value);
@@ -99,14 +99,14 @@ class BackblazeS3Storage {
 
     const canonicalHeaderEntries: Array<[string, string]> = [
       ["host", url.host],
-      ...Array.from(headers.entries()).map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\\s+/g, " ")]),
+      ...Array.from(headers.entries()).map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\s+/g, " ")]),
     ];
     canonicalHeaderEntries.sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = canonicalHeaderEntries.map(([name, value]) => `${name}:${value}\\n`).join("");
+    const canonicalHeaders = canonicalHeaderEntries.map(([name, value]) => `${name}:${value}\n`).join("");
     const signedHeaders = canonicalHeaderEntries.map(([name]) => name).join(";");
     const canonicalRequest = [
       method, url.pathname, encodedQuery, canonicalHeaders, signedHeaders, payloadHash,
-    ].join("\\n");
+    ].join("\n");
     const scope = `${dateStamp}/${this.region}/s3/aws4_request`;
     const stringToSign = [
       "AWS4-HMAC-SHA256", amzDate, scope, await sha256(canonicalRequest),
