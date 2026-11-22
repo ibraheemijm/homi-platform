@@ -31,7 +31,7 @@ function decodePayload(value: string): Record<string, unknown> | null {
 export async function handleSubscriptionRenewal(request: Request, env: Env, path: string): Promise<Response | null> {
   const match = path.match(/^\/admin\/subscriptions\/([0-9a-f-]{36})\/renew$/i);
   if (!match || request.method !== "POST") return null;
-  const auth = await authenticateAdmin(request, env, ["payments.confirm", "subscriptions.manage", "licenses.issue"]);
+  const auth = await authenticateAdmin(request, env, ["payments.confirm", "subscriptions.manage", "licenses.renew"]);
   if (auth.response) return auth.response;
   const subscriptionId = match[1];
   const idempotencyKey = request.headers.get("Idempotency-Key")?.trim() ?? "";
