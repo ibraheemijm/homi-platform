@@ -99,7 +99,7 @@ class BackblazeS3Storage {
 
     const canonicalHeaderEntries: Array<[string, string]> = [
       ["host", url.host],
-      ...Array.from(headers.entries()).map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\s+/g, " ")]),
+      ...Array.from(headers.entries()).map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\s+/g, " ")] as [string, string]),
     ];
     canonicalHeaderEntries.sort((a, b) => a[0].localeCompare(b[0]));
     const canonicalHeaders = canonicalHeaderEntries.map(([name, value]) => `${name}:${value}\n`).join("");
