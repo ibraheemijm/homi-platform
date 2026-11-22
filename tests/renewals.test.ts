@@ -119,7 +119,7 @@ describe("manual subscription renewal", () => {
     expect(authenticateAdmin).toHaveBeenCalledWith(
       expect.any(Request),
       env,
-      ["payments.confirm", "subscriptions.manage", "licenses.renew"],
+      ["payments.confirm", "subscriptions.renew", "licenses.renew"],
     );
     expect(response?.status).toBe(201);
     expect(payload.ends_at).toBe("2026-02-14T00:00:00.000Z");
