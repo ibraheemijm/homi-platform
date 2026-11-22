@@ -73,7 +73,9 @@
 تنشأ المفاتيح خارج GitHub، ثم تضاف مباشرة إلى بيئة Worker المقصودة:
 - LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64
 - UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64
-- ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64\n- B2_ACCESS_KEY_ID\n- B2_SECRET_ACCESS_KEY
+- ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64
+- B2_ACCESS_KEY_ID
+- B2_SECRET_ACCESS_KEY
 
 كل مفتاح له غرض مستقل:
 - جذر الثقة يوقع Keyset فقط.
