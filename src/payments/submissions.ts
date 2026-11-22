@@ -134,7 +134,7 @@ export async function submitPaymentEvidence(
       }), activationRequestId, now),
     ]);
   } catch {
-    if (proofObjectKey && env.FILES) await storage.delete(proofObjectKey).catch(() => undefined);
+    if (proofObjectKey && storage) await storage.delete(proofObjectKey).catch(() => undefined);
     return fail("PAYMENT_SUBMISSION_FAILED", "تعذر تسجيل إثبات الدفع. حاول مرة أخرى.", 409);
   }
 
