@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { getStorage } from "../storage/backblaze";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_FILE_BYTES = 64 * 1024;
@@ -30,7 +31,8 @@ async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
 }
 
 export async function importHreq(request: Request, env: Env): Promise<Response> {
-  if (!env.FILES) return fail("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الطلبات غير مهيأ لهذه البيئة.", 503);
+  const storage = getStorage(env);
+  if (!storage) return fail("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الطلبات غير مهيأ لهذه البيئة.", 503);
   const length = Number(request.headers.get("content-length") ?? "0");
   if (length > MAX_FILE_BYTES + 8192) return fail("FILE_TOO_LARGE", "حجم ملف الطلب أكبر من الحد المسموح.", 413);
 
@@ -174,7 +176,7 @@ export async function importHreq(request: Request, env: Env): Promise<Response> 
   const challenge = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
   const challengeExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
   const fileKey = `activation-requests/${requestId}/${fileHash}-${crypto.randomUUID()}.hreq`;
-  await env.FILES.put(fileKey, fileBytes, {
+  await storage.put(fileKey, fileBytes, {
     httpMetadata: { contentType: "application/vnd.homi.activation-request+json" },
     customMetadata: { requestId, productKey: "homi-grocery", sha256: fileHash },
   });
@@ -218,7 +220,7 @@ export async function importHreq(request: Request, env: Env): Promise<Response> 
       throw new Error("HREQ records were not created atomically.");
     }
   } catch {
-    await env.FILES.delete(fileKey).catch(() => undefined);
+    await storage.delete(fileKey).catch(() => undefined);
     return fail("HREQ_IMPORT_FAILED", "تعذر تسجيل ملف الطلب؛ لم يتم إنشاء طلب تفعيل.", 409);
   }
 
