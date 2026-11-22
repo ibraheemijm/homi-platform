@@ -69,11 +69,14 @@ npm run dev
 
 ## إعدادات البيئة
 
+- `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`: إعدادات نقطة اتصال Backblaze B2 لكل بيئة.
+- `B2_ACCESS_KEY_ID` و`B2_SECRET_ACCESS_KEY`: أسرار خادم فقط، بمفتاح تطبيق محدود على Bucket الاختبار.
+
 - `PUBLIC_SITE_ORIGIN`: أصل الموقع العام.
 - `ADMIN_SITE_ORIGIN`: أصل لوحة الإدارة.
 - `CF_ACCESS_TEAM_DOMAIN` و`CF_ACCESS_AUD`: التحقق من Cloudflare Access.
 - `LICENSE_SIGNING_KEY_ID`: معرف مفتاح Ed25519 العام.
 - `LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64`: Worker Secret فقط.
-- `FILES`: R2 bucket لملفات الطلبات والحزم وإثباتات الدفع.
+- Backblaze B2: تخزين خاص عبر S3-compatible API لملفات HREQ وإثباتات الدفع وحزم الإصدارات.
 
 لا تضع أسرارًا أو مفاتيح خاصة أو بيانات عملاء فعلية في هذا المستودع. لا تنفذ نشرًا أو تنشئ موارد Cloudflare من هذا الفرع قبل الموافقة.
