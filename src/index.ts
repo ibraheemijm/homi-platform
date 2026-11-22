@@ -1,4 +1,5 @@
 import type { Env, ActivationRequestRow } from "./types";
+import { getStorage } from "./storage/backblaze";
 import { authenticateAdmin } from "./security/access";
 import { approveActivationRequest } from "./licensing/issue";
 import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-grants";
@@ -326,6 +327,7 @@ async function activationStatus(env: Env, requestId: string, headers: HeadersIni
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const headers = corsHeaders(request, env);
+    const storage = getStorage(env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
     const url = new URL(request.url);
     if (url.pathname === "/health" && request.method === "GET") {
@@ -389,7 +391,7 @@ export default {
          FROM payment_submissions WHERE id = ? LIMIT 1`
       ).bind(paymentProofMatch[1]).first<{ proof_object_key: string | null; proof_content_type: string | null; proof_file_name: string | null }>();
       if (!row?.proof_object_key || !row.proof_content_type) return error("PROOF_NOT_FOUND", "لا يوجد ملف إثبات لهذا الدفع.", 404, headers);
-      const object = await env.FILES.get(row.proof_object_key);
+      const object = await storage.get(row.proof_object_key);
       if (!object) return error("PROOF_NOT_FOUND", "ملف إثبات الدفع غير متاح.", 404, headers);
       const safeName = (row.proof_file_name || "payment-proof").replace(/[^A-Za-z0-9._-]/g, "_");
       const proofResponse = new Response(object.body, {
@@ -588,7 +590,7 @@ export default {
 
     const updateDownloadMatch = path.match(/^\/updates\/([^/]+)\/download$/);
     if (request.method === "GET" && updateDownloadMatch) {
-      if (!env.FILES) return error("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
+      if (!storage) return error("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
       const row = await env.DB.prepare(
         `SELECT a.r2_object_key, a.file_name, a.content_type, a.size_bytes
          FROM release_assets a
