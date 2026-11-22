@@ -2,7 +2,7 @@ import type { Env } from "../types";
 import { authenticateAdmin } from "../security/access";
 import { encodePayloadBase64, signLicensePayload } from "../licensing/signer";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PLAN_DAYS: Record<string, number> = { monthly: 30, annual: 365 };
 
 function json(data: unknown, status = 200): Response {
