@@ -306,7 +306,7 @@ sha256_hex
 
 ## تجديد الاشتراك بالدفع اليدوي
 
-`POST /admin/subscriptions/{subscription_id}/renew` — محمي عبر Cloudflare Access ويتطلب الصلاحيات `payments.confirm` و`subscriptions.manage` و`licenses.renew`.
+`POST /admin/subscriptions/{subscription_id}/renew` — محمي عبر Cloudflare Access ويتطلب الصلاحيات `payments.confirm` و`subscriptions.renew` و`licenses.renew`.
 
 يجب إرسال رأس `Idempotency-Key` بقيمة UUID جديدة لكل عملية تجديد. يعيد الخادم نفس النتيجة عند إعادة إرسال المفتاح نفسه، ويرفض استخدام المفتاح لعملية أخرى.
 
