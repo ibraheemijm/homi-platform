@@ -3,6 +3,7 @@ import { authenticateAdmin } from "./security/access";
 import { approveActivationRequest } from "./licensing/issue";
 import { createDeviceChallenge, issueOfflineGrant } from "./licensing/offline-grants";
 import { importHreq } from "./activation/hreq";
+import { registerTrial } from "./activation/trials";
 import { submitPaymentEvidence } from "./payments/submissions";
 import { handleReleaseAdmin } from "./releases/admin";
 import { createSignedSigningKeyset } from "./licensing/keyset";
@@ -490,6 +491,13 @@ export default {
       if (auth.response) return withHeaders(auth.response, headers);
       const result = await approveActivationRequest(request, env, approveMatch[1], auth.actor);
       return withHeaders(result, headers);
+    }
+
+    if (request.method === "POST" && path === "/public/trials/register") {
+      if (!(await rateLimit(request, env, "trial-register", 8))) {
+        return error("RATE_LIMITED", "تم تجاوز عدد محاولات تسجيل التجربة مؤقتًا.", 429, headers);
+      }
+      return withHeaders(await registerTrial(request, env, headers), headers);
     }
 
     if (request.method === "POST" && path === "/public/activation-requests") {
