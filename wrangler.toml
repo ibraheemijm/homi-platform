@@ -17,12 +17,9 @@ database_name = "homi-platform"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
-# R2 bucket for HREQ uploads, release packages, and payment evidence.
-# Create the local/remote buckets before enabling remote use.
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "homi-platform-files"
-preview_bucket_name = "homi-platform-files-preview"
+# Backblaze B2 is accessed through its private S3-compatible API.
+# Configure B2_ENDPOINT, B2_REGION, and B2_BUCKET as environment variables.
+# Store B2_ACCESS_KEY_ID and B2_SECRET_ACCESS_KEY as secrets; never commit them.
 
 # بيئة اختبار فعلية مستقلة؛ لا تستخدم قاعدة الإنتاج.
 [env.preview]
