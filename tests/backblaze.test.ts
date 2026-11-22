@@ -24,6 +24,7 @@ describe("Backblaze B2 S3 storage adapter", () => {
   it("requires all endpoint, bucket, region, and credential settings", () => {
     expect(isStorageConfigured({} as Env)).toBe(false);
     expect(isStorageConfigured(storageEnv())).toBe(true);
+    expect(isStorageConfigured({ ...storageEnv(), B2_ENDPOINT: "https://untrusted.example" })).toBe(false);
   });
 
   it("signs private object requests with AWS Signature V4", async () => {
