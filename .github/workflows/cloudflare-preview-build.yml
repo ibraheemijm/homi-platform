@@ -1,6 +1,8 @@
 name: Cloudflare Preview Build
 
 on:
+  push:
+    branches: [foundation/platform-api-v1]
   workflow_dispatch:
 
 permissions:
