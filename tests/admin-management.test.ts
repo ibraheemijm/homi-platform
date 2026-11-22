@@ -97,7 +97,7 @@ describe("customer and subscription administration", () => {
     const payload = await response?.json() as Record<string, unknown>;
 
     expect(response?.status).toBe(409);
-    expect(payload.error).toBe("SEAT_LIMIT_BELOW_USAGE");
+    expect(payload.error).toMatchObject({ code: "SEAT_LIMIT_BELOW_USAGE" });
     expect(batchCalls).toEqual([]);
   });
 
