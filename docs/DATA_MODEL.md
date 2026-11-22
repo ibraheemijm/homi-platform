@@ -16,6 +16,7 @@
 - `admin_users`, `admin_roles`, `admin_permissions`, `admin_role_permissions`: هوية الإدارة وصلاحيات RBAC.
 - `audit_logs`: سجل العمليات الإدارية الحساسة.
 - `activation_request_files`: بيانات ملفات الطلب المحفوظة في R2 دون وضع الملف الثنائي في D1.
+- `trial_registrations`: تسجيل أول ظهور للتجربة محليًا حسب التطبيق ومعرف الجهاز وبصمة المفتاح، دون إنشاء حساب عميل أو ترخيص.
 - `idempotency_keys`: منع تكرار العمليات المالية وإصدار التراخيص.
 
 ## قواعد العمل
