@@ -116,7 +116,12 @@ describe("manual subscription renewal", () => {
     );
     const payload = await response?.json() as Record<string, unknown>;
 
-    expect(authenticateAdmin).toHaveBeenCalledWith(expect.any(Request), env, [\n      "payments.confirm", "subscriptions.manage", "licenses.renew",\n    ]);\n    expect(response?.status).toBe(201);
+    expect(authenticateAdmin).toHaveBeenCalledWith(
+      expect.any(Request),
+      env,
+      ["payments.confirm", "subscriptions.manage", "licenses.renew"],
+    );
+    expect(response?.status).toBe(201);
     expect(payload.ends_at).toBe("2026-02-14T00:00:00.000Z");
     expect(payload.payment_status).toBe("confirmed");
     expect(payload.renewed_license_count).toBe(0);
