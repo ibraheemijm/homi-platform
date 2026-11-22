@@ -76,7 +76,7 @@ class BackblazeS3Storage {
   ): Promise<Response> {
     const path = `/${awsEncode(this.bucket)}/${key.split("/").map(awsEncode).join("/")}`;
     const encodedQuery = query
-      .map(([name, value]): [string, string] => [awsEncode(name), awsEncode(value)] as const)
+      .map(([name, value]): [string, string] => [awsEncode(name), awsEncode(value)])
       .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]))
       .map(([name, value]) => `${name}=${value}`)
       .join("&");
