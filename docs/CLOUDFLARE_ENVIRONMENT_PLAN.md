@@ -36,7 +36,11 @@
 
 ## 4. Backblaze B2
 
-يستخدم Worker واجهة S3-compatible مباشرة عبر AWS Signature Version 4. لا يوجد R2 binding أو اتصال مباشر من تطبيق العميل.\n\nمتغيرات البيئة: `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`.\n\nأسرار الخادم: `B2_ACCESS_KEY_ID`, `B2_SECRET_ACCESS_KEY`. يجب إنشاء Application Key محدود على Bucket الخاص بكل بيئة بصلاحيات القراءة والكتابة والحذف فقط.
+يستخدم Worker واجهة S3-compatible مباشرة عبر AWS Signature Version 4. لا يوجد R2 binding أو اتصال مباشر من تطبيق العميل. احتُفظ مؤقتًا باسم العمود التاريخي `r2_object_key` في D1 دون تغيير بنيته؛ القيم الجديدة تشير إلى مفاتيح كائنات B2، ولا يلزم ترحيل بيانات لهذا التبديل.
+
+متغيرات البيئة: `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`.
+
+أسرار الخادم: `B2_ACCESS_KEY_ID`, `B2_SECRET_ACCESS_KEY`. يجب إنشاء Application Key محدود على Bucket الخاص بكل بيئة بصلاحيات القراءة والكتابة والحذف فقط.
 
 مسارات الكائنات المنطقية:
 - activation-requests/: ملفات HREQ.
