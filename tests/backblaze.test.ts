@@ -27,11 +27,10 @@ describe("Backblaze B2 S3 storage adapter", () => {
   });
 
   it("signs private object requests with AWS Signature V4", async () => {
-    let capturedUrl = "";
-    let capturedHeaders: Headers | null = null;
+    const captured = { url: "", headers: new Headers() };
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-      capturedUrl = String(input);
-      capturedHeaders = new Headers(init?.headers);
+      captured.url = String(input);
+      captured.headers = new Headers(init?.headers);
       return new Response(null, { status: 200 });
     });
 
@@ -42,8 +41,8 @@ describe("Backblaze B2 S3 storage adapter", () => {
       customMetadata: { requestId: "request-1" },
     });
 
-    expect(capturedUrl).toContain("s3.us-west-004.backblazeb2.com/homi-preview-files/activation-requests/");
-    expect(capturedHeaders?.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");
+    expect(captured.url).toContain("s3.us-west-004.backblazeb2.com/homi-preview-files/activation-requests/");
+    expect(captured.headers.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");
     expect(capturedHeaders?.get("x-amz-content-sha256")).toMatch(/^[a-f0-9]{64}$/);
     expect(capturedHeaders?.get("x-amz-meta-requestid")).toBe("request-1");
     expect(capturedHeaders?.get("authorization")).not.toContain("test-secret-key");
