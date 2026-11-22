@@ -59,7 +59,7 @@ function testEnv() {
   return { env, getTrial: () => trial };
 }
 async function signedTrialBody(startedAt = new Date(Date.now() - 60_000)) {
-  const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+  const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as CryptoKeyPair;
   const publicKey = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
   const fingerprint = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", publicKey)));
   const deviceId = "123e4567-e89b-42d3-a456-426614174099";
