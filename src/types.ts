@@ -1,6 +1,10 @@
 export interface Env {
   DB: D1Database;
-  FILES?: R2Bucket;
+  B2_ENDPOINT?: string;
+  B2_REGION?: string;
+  B2_BUCKET?: string;
+  B2_ACCESS_KEY_ID?: string;
+  B2_SECRET_ACCESS_KEY?: string;
   APP_ENV: string;
   SUPPORT_PHONE: string;
   PUBLIC_SITE_ORIGIN: string;
