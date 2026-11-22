@@ -34,9 +34,9 @@
 - يمنع استخدام معرف قاعدة Preview في Production أو العكس.
 - ترحيل 0010 يسجل تجربة الجهاز محليًا حسب product_id وdevice_id وkey_fingerprint، ولا ينشئ عميلًا أو ترخيصًا.
 
-## 4. R2
+## 4. Backblaze B2
 
-Binding الحالي: FILES.
+يستخدم Worker واجهة S3-compatible مباشرة عبر AWS Signature Version 4. لا يوجد R2 binding أو اتصال مباشر من تطبيق العميل.\n\nمتغيرات البيئة: `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`.\n\nأسرار الخادم: `B2_ACCESS_KEY_ID`, `B2_SECRET_ACCESS_KEY`. يجب إنشاء Application Key محدود على Bucket الخاص بكل بيئة بصلاحيات القراءة والكتابة والحذف فقط.
 
 مسارات الكائنات المنطقية:
 - activation-requests/: ملفات HREQ.
@@ -107,7 +107,7 @@ Binding الحالي: FILES.
 ## 10. ما يحتاج قرارًا قبل التنفيذ
 
 - الافتراضي: استخدام workers.dev لبيئة Preview والإطلاق الأولي، وتأجيل شراء نطاق Homi إلى ما بعد تحقق عائد أو ظهور ضرورة تشغيلية واضحة.
-- اعتماد أسماء D1 وR2 النهائية.
+- اعتماد أسماء D1 وBuckets الخاصة في Backblaze B2.
 - اختيار مزود هوية Cloudflare Access للمشغلين الإداريين.
 - اعتماد خطة الاحتفاظ بملفات إثبات الدفع وحذفها بعد انتهاء الغرض منها.
 
