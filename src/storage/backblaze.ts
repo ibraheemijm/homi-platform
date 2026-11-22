@@ -213,7 +213,7 @@ class BackblazeS3Storage {
   }
 }
 
-/** Accept only the region-specific HTTPS endpoint published for Backblaze B2. */
+/** Validate the region-specific HTTPS endpoint before signing any storage request. */
 export function getStorage(env: Env): BackblazeS3Storage | null {
   if (!env.B2_ENDPOINT || !env.B2_BUCKET || !env.B2_REGION ||
       !env.B2_ACCESS_KEY_ID || !env.B2_SECRET_ACCESS_KEY) return null;
