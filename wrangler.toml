@@ -31,8 +31,8 @@ name = "homi-platform-api-preview"
 [env.preview.vars]
 APP_ENV = "preview"
 SUPPORT_PHONE = "+2490904697455"
-PUBLIC_SITE_ORIGIN = "https://homi-website-preview.pages.dev"
-ADMIN_SITE_ORIGIN = "https://homi-admin-preview.pages.dev"
+PUBLIC_SITE_ORIGIN = "https://homi-public-preview.pages.dev"
+ADMIN_SITE_ORIGIN = "https://homi-admin-console-preview.pages.dev"
 SIGNING_KEYSET_VERSION = "1"
 SIGNING_KEYSET_ADDITIONAL_KEYS_JSON = "[]"
 
