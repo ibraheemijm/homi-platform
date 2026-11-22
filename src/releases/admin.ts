@@ -208,7 +208,7 @@ export async function handleReleaseAdmin(
     if (!rows.length || !sequential || total !== session.size_bytes) {
       return fail("UPLOAD_INCOMPLETE", "لم تكتمل جميع أجزاء الملف أو لا يطابق الحجم المتوقع.", 409, headers);
     }
-    const upload = env.FILES.resumeMultipartUpload(session.object_key, session.upload_id);
+    const upload = storage.resumeMultipartUpload(session.object_key, session.upload_id);
     const completed = await upload.complete(rows.map((row) => ({ partNumber: row.part_number, etag: row.etag })));
     if (completed.size !== session.size_bytes) {
       await storage.delete(session.object_key);
@@ -242,7 +242,7 @@ export async function handleReleaseAdmin(
       ]);
       return json({ asset_id: assetId, status: "uploaded", sha256: session.sha256_hex }, 201, headers);
     } catch {
-      await env.FILES.delete(session.object_key);
+      await storage.delete(session.object_key);
       await env.DB.prepare("UPDATE release_upload_sessions SET status = 'failed', updated_at = ? WHERE id = ?")
         .bind(new Date().toISOString(), session.id).run();
       return fail("RELEASE_ASSET_SAVE_FAILED", "تعذر حفظ ملف الإصدار وبياناته.", 503, headers);
