@@ -4,7 +4,7 @@
 
 ## الحالة الحالية
 
-هذا المستودع يبدأ من الصفر. المرحلة الأولى تضيف أساس Cloudflare Worker وD1 وعقد API المتوافق مع تدفق التفعيل الحالي في Homi Grocery (PR #4). لا يوجد نشر أو اتصال بموارد Cloudflare حقيقية ضمن هذه المرحلة.
+المستودع يحتوي أساس Cloudflare Worker وD1 وعقد API المتوافق مع تدفق التفعيل الحالي في Homi Grocery، إضافة إلى إعداد Preview منفصل. التخزين الخارجي للملفات يعتمد Backblaze B2 عبر S3-compatible API.
 
 ## المكونات
 
@@ -70,7 +70,7 @@ npm run dev
 ## إعدادات البيئة
 
 - `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`: إعدادات نقطة اتصال Backblaze B2 لكل بيئة.
-- `B2_ACCESS_KEY_ID` و`B2_SECRET_ACCESS_KEY`: أسرار خادم فقط، بمفتاح تطبيق محدود على Bucket الاختبار.
+- `B2_ACCESS_KEY_ID` و`B2_SECRET_ACCESS_KEY`: أسرار خادم فقط، بمفتاح تطبيق محدود على Bucket البيئة.
 
 - `PUBLIC_SITE_ORIGIN`: أصل الموقع العام.
 - `ADMIN_SITE_ORIGIN`: أصل لوحة الإدارة.
