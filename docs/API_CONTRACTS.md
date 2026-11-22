@@ -131,7 +131,7 @@ homi-grocery
 }
 ```
 
-هذه العملية تتطلب مجتمعة صلاحيات `activation_requests.review` و`payments.confirm` و`subscriptions.manage` و`licenses.renew`. تسجل دفعة بحالة `confirmed` وتصدر ترخيصًا واحدًا مربوطًا بالجهاز الذي اجتاز إثبات الملكية. العملية ذرية وتعيد الترخيص نفسه عند إعادة إرسال الطلب المعتمد.
+هذه العملية تتطلب مجتمعة صلاحيات `activation_requests.review` و`payments.confirm` و`subscriptions.manage` و`licenses.issue`. تسجل دفعة بحالة `confirmed` وتصدر ترخيصًا واحدًا مربوطًا بالجهاز الذي اجتاز إثبات الملكية. العملية ذرية وتعيد الترخيص نفسه عند إعادة إرسال الطلب المعتمد.
 
 > قيمة `amount_minor` تسجل كما أدخلتها الإدارة بأصغر وحدة للعملة؛ لا توجد أسعار أو تحويل عملات داخل المنصة في هذه المرحلة.
 
@@ -306,7 +306,7 @@ sha256_hex
 
 ## تجديد الاشتراك بالدفع اليدوي
 
-`POST /admin/subscriptions/{subscription_id}/renew` — محمي عبر Cloudflare Access ويتطلب الصلاحيات `payments.confirm` و`subscriptions.manage` و`licenses.issue`.
+`POST /admin/subscriptions/{subscription_id}/renew` — محمي عبر Cloudflare Access ويتطلب الصلاحيات `payments.confirm` و`subscriptions.manage` و`licenses.renew`.
 
 يجب إرسال رأس `Idempotency-Key` بقيمة UUID جديدة لكل عملية تجديد. يعيد الخادم نفس النتيجة عند إعادة إرسال المفتاح نفسه، ويرفض استخدام المفتاح لعملية أخرى.
 
