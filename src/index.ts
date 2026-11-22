@@ -385,7 +385,7 @@ export default {
     if (request.method === "GET" && paymentProofMatch) {
       const auth = await authenticateAdmin(request, env, ["payments.read"]);
       if (auth.response) return withHeaders(auth.response, headers);
-      if (!UUID_RE.test(paymentProofMatch[1]) || !env.FILES) return error("PROOF_NOT_FOUND", "إثبات الدفع غير موجود.", 404, headers);
+      if (!UUID_RE.test(paymentProofMatch[1]) || !storage) return error("PROOF_NOT_FOUND", "إثبات الدفع غير موجود.", 404, headers);
       const row = await env.DB.prepare(
         `SELECT proof_object_key, proof_content_type, proof_file_name
          FROM payment_submissions WHERE id = ? LIMIT 1`
@@ -602,7 +602,7 @@ export default {
         r2_object_key: string; file_name: string; content_type: string; size_bytes: number;
       }>();
       if (!row) return error("UPDATE_ASSET_NOT_FOUND", "ملف التحديث غير موجود أو غير منشور.", 404, headers);
-      const object = await env.FILES.get(row.r2_object_key);
+      const object = await storage.get(row.r2_object_key);
       if (!object) return error("UPDATE_ASSET_NOT_FOUND", "ملف التحديث غير متاح حاليًا.", 404, headers);
       const safeName = row.file_name.replace(/[^A-Za-z0-9._-]/g, "_");
       return withHeaders(new Response(object.body, {
@@ -671,7 +671,7 @@ export default {
 
     const releaseDownloadMatch = path.match(/^\/public\/releases\/([^/]+)\/assets\/([^/]+)\/download$/);
     if (request.method === "GET" && releaseDownloadMatch) {
-      if (!env.FILES) return error("FILE_STORAGE_UNAVAILABLE", "تخزين الملفات غير مهيأ.", 503, headers);
+      if (!storage) return error("FILE_STORAGE_UNAVAILABLE", "تخزين الملفات غير مهيأ.", 503, headers);
       const row = await env.DB.prepare(
         `SELECT a.r2_object_key, a.file_name, a.content_type, a.size_bytes
          FROM release_assets a
@@ -683,7 +683,7 @@ export default {
         r2_object_key: string; file_name: string; content_type: string; size_bytes: number;
       }>();
       if (!row) return error("RELEASE_ASSET_NOT_FOUND", "ملف الإصدار غير موجود أو لم يعد منشورًا.", 404, headers);
-      const object = await env.FILES.get(row.r2_object_key);
+      const object = await storage.get(row.r2_object_key);
       if (!object) return error("RELEASE_ASSET_NOT_FOUND", "ملف الإصدار غير متاح حاليًا.", 404, headers);
       const safeName = row.file_name.replace(/[^A-Za-z0-9._-]/g, "_");
       const downloadResponse = new Response(object.body, {
