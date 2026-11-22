@@ -23,3 +23,21 @@ migrations_dir = "migrations"
 binding = "FILES"
 bucket_name = "homi-platform-files"
 preview_bucket_name = "homi-platform-files-preview"
+
+# بيئة اختبار فعلية مستقلة؛ لا تستخدم قاعدة الإنتاج.
+[env.preview]
+name = "homi-platform-api-preview"
+
+[env.preview.vars]
+APP_ENV = "preview"
+SUPPORT_PHONE = "+2490904697455"
+PUBLIC_SITE_ORIGIN = "https://homi-website-preview.pages.dev"
+ADMIN_SITE_ORIGIN = "https://homi-admin-preview.pages.dev"
+SIGNING_KEYSET_VERSION = "1"
+SIGNING_KEYSET_ADDITIONAL_KEYS_JSON = "[]"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "homi-platform-preview"
+database_id = "c9afd3d8-3490-4288-a178-c8ded7a851eb"
+migrations_dir = "migrations"
