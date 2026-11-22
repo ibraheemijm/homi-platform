@@ -1,6 +1,7 @@
 import type { Env } from "../types";
 import { authenticateAdmin } from "../security/access";
 import { encodePayloadBase64, signUpdatePayload } from "../licensing/signer";
+import { getStorage } from "../storage/backblaze";
 
 const API_PREFIX = "/api/v1";
 
@@ -115,7 +116,8 @@ export async function handleReleaseAdmin(
     return json({ release_id: id, status: "draft" }, 201, headers);
   }
 
-  if (!env.FILES) return fail("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
+  const storage = getStorage(env);
+  if (!storage) return fail("FILE_STORAGE_UNAVAILABLE", "تخزين ملفات الإصدارات غير مهيأ.", 503, headers);
 
   const startMatch = path.match(/^\/admin\/releases\/([0-9a-f-]{36})\/uploads$/i);
   if (request.method === "POST" && startMatch) {
@@ -148,7 +150,7 @@ export async function handleReleaseAdmin(
     const id = crypto.randomUUID();
     const objectKey = `releases/${releaseId}/${id}/${fileName}`;
     const now = new Date().toISOString();
-    const upload = await env.FILES.createMultipartUpload(objectKey, {
+    const upload = await storage.createMultipartUpload(objectKey, {
       httpMetadata: { contentType },
       customMetadata: { releaseId, platform, architecture, sha256 },
     });
@@ -179,7 +181,7 @@ export async function handleReleaseAdmin(
         !request.body || length < 1 || length > 8 * 1024 * 1024) {
       return fail("INVALID_UPLOAD_PART", "جزء الملف غير صالح أو حجمه يتجاوز 8 ميجابايت.", 422, headers);
     }
-    const upload = env.FILES.resumeMultipartUpload(session.object_key, session.upload_id);
+    const upload = storage.resumeMultipartUpload(session.object_key, session.upload_id);
     const part = await upload.uploadPart(partNumber, request.body);
     const now = new Date().toISOString();
     await env.DB.prepare(
@@ -209,7 +211,7 @@ export async function handleReleaseAdmin(
     const upload = env.FILES.resumeMultipartUpload(session.object_key, session.upload_id);
     const completed = await upload.complete(rows.map((row) => ({ partNumber: row.part_number, etag: row.etag })));
     if (completed.size !== session.size_bytes) {
-      await env.FILES.delete(session.object_key);
+      await storage.delete(session.object_key);
       await env.DB.prepare("UPDATE release_upload_sessions SET status = 'failed', updated_at = ? WHERE id = ?")
         .bind(new Date().toISOString(), session.id).run();
       return fail("UPLOAD_SIZE_MISMATCH", "حجم الملف بعد الرفع لا يطابق الحجم المتوقع.", 409, headers);
