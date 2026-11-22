@@ -216,10 +216,16 @@ class BackblazeS3Storage {
 export function getStorage(env: Env): BackblazeS3Storage | null {
   if (!env.B2_ENDPOINT || !env.B2_BUCKET || !env.B2_REGION ||
       !env.B2_ACCESS_KEY_ID || !env.B2_SECRET_ACCESS_KEY) return null;
-  return new BackblazeS3Storage(env);
+  try {
+    const endpoint = new URL(env.B2_ENDPOINT);
+    if (endpoint.protocol !== "https:" ||
+        endpoint.hostname !== `s3.${env.B2_REGION}.backblazeb2.com`) return null;
+    return new BackblazeS3Storage(env);
+  } catch {
+    return null;
+  }
 }
 
 export function isStorageConfigured(env: Env): boolean {
-  return Boolean(env.B2_ENDPOINT && env.B2_BUCKET && env.B2_REGION &&
-    env.B2_ACCESS_KEY_ID && env.B2_SECRET_ACCESS_KEY);
+  return getStorage(env) !== null;
 }
