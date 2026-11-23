@@ -34,7 +34,8 @@ async function expectedAwsSignature(urlText: string, headers: Headers, secret: s
   const stringToSign = ["AWS4-HMAC-SHA256", amzDate, `${dateStamp}/${region}/s3/aws4_request`, await digest(canonicalRequest)].join("\n");
   return Array.from(await hmac(signingKey, stringToSign), byte => byte.toString(16).padStart(2, "0")).join("");
 }
-\nfunction storageEnv(): Env {
+
+function storageEnv(): Env {
   return {
     DB: {} as D1Database,
     APP_ENV: "test",
