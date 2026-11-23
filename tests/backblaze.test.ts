@@ -2,7 +2,39 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/types";
 import { getStorage, isStorageConfigured } from "../src/storage/backblaze";
 
-function storageEnv(): Env {
+
+async function expectedAwsSignature(urlText: string, headers: Headers, secret: string, region: string): Promise<string> {
+  const url = new URL(urlText);
+  const amzDate = headers.get("x-amz-date")!;
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = headers.get("x-amz-content-sha256")!;
+  const entries: Array<[string, string]> = [
+    ["host", url.host],
+    ...Array.from(headers.entries())
+      .filter(([name]) => name.toLowerCase() !== "authorization")
+      .map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\\s+/g, " ")] as [string, string]),
+  ];
+  entries.sort((a, b) => a[0].localeCompare(b[0]));
+  const canonicalHeaders = entries.map(([name, value]) => `${name}:${value}\\n`).join("");
+  const signedHeaders = entries.map(([name]) => name).join(";");
+  const canonicalRequest = ["PUT", url.pathname, "", canonicalHeaders, signedHeaders, payloadHash].join("\\n");
+  const digest = async (value: string) => Array.from(
+    new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))),
+    byte => byte.toString(16).padStart(2, "0"),
+  ).join("");
+  const hmac = async (key: Uint8Array, value: string) => new Uint8Array(await crypto.subtle.sign(
+    "HMAC",
+    await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
+    new TextEncoder().encode(value),
+  ));
+  const dateKey = await hmac(new TextEncoder().encode(`AWS4${secret}`), dateStamp);
+  const regionKey = await hmac(dateKey, region);
+  const serviceKey = await hmac(regionKey, "s3");
+  const signingKey = await hmac(serviceKey, "aws4_request");
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, `${dateStamp}/${region}/s3/aws4_request`, await digest(canonicalRequest)].join("\\n");
+  return Array.from(await hmac(signingKey, stringToSign), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+\nfunction storageEnv(): Env {
   return {
     DB: {} as D1Database,
     APP_ENV: "test",
@@ -43,7 +75,7 @@ describe("Backblaze B2 S3 storage adapter", () => {
     });
 
     expect(captured.url).toContain("s3.us-west-004.backblazeb2.com/homi-preview-files/activation-requests/");
-    expect(captured.headers.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");
+    expect(captured.headers.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");\n    const expectedSignature = await expectedAwsSignature(captured.url, captured.headers, "test-secret-key", "us-west-004");\n    expect(captured.headers.get("authorization")).toContain(`Signature=${expectedSignature}`);
     expect(captured.headers.get("x-amz-content-sha256")).toMatch(/^[a-f0-9]{64}$/);
     expect(captured.headers.get("x-amz-meta-requestid")).toBe("request-1");
     expect(captured.headers.get("authorization")).not.toContain("test-secret-key");
