@@ -110,7 +110,7 @@ class BackblazeS3Storage {
     const scope = `${dateStamp}/${this.region}/s3/aws4_request`;
     const stringToSign = [
       "AWS4-HMAC-SHA256", amzDate, scope, await sha256(canonicalRequest),
-    ].join("\\n");
+    ].join("\n");
 
     const dateKey = await hmac(new TextEncoder().encode(`AWS4${this.secretKey}`), dateStamp);
     const regionKey = await hmac(dateKey, this.region);
