@@ -76,7 +76,9 @@ describe("Backblaze B2 S3 storage adapter", () => {
     });
 
     expect(captured.url).toContain("s3.us-west-004.backblazeb2.com/homi-preview-files/activation-requests/");
-    expect(captured.headers.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");\n    const expectedSignature = await expectedAwsSignature(captured.url, captured.headers, "test-secret-key", "us-west-004");\n    expect(captured.headers.get("authorization")).toContain(`Signature=${expectedSignature}`);
+    expect(captured.headers.get("authorization")).toContain("AWS4-HMAC-SHA256 Credential=test-key-id/");
+    const expectedSignature = await expectedAwsSignature(captured.url, captured.headers, "test-secret-key", "us-west-004");
+    expect(captured.headers.get("authorization")).toContain(`Signature=${expectedSignature}`);
     expect(captured.headers.get("x-amz-content-sha256")).toMatch(/^[a-f0-9]{64}$/);
     expect(captured.headers.get("x-amz-meta-requestid")).toBe("request-1");
     expect(captured.headers.get("authorization")).not.toContain("test-secret-key");
