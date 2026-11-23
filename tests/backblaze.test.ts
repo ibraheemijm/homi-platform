@@ -12,12 +12,12 @@ async function expectedAwsSignature(urlText: string, headers: Headers, secret: s
     ["host", url.host],
     ...Array.from(headers.entries())
       .filter(([name]) => name.toLowerCase() !== "authorization")
-      .map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\\s+/g, " ")] as [string, string]),
+      .map(([name, value]) => [name.toLowerCase(), value.trim().replace(/\s+/g, " ")] as [string, string]),
   ];
   entries.sort((a, b) => a[0].localeCompare(b[0]));
-  const canonicalHeaders = entries.map(([name, value]) => `${name}:${value}\\n`).join("");
+  const canonicalHeaders = entries.map(([name, value]) => `${name}:${value}\n`).join("");
   const signedHeaders = entries.map(([name]) => name).join(";");
-  const canonicalRequest = ["PUT", url.pathname, "", canonicalHeaders, signedHeaders, payloadHash].join("\\n");
+  const canonicalRequest = ["PUT", url.pathname, "", canonicalHeaders, signedHeaders, payloadHash].join("\n");
   const digest = async (value: string) => Array.from(
     new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))),
     byte => byte.toString(16).padStart(2, "0"),
@@ -31,7 +31,7 @@ async function expectedAwsSignature(urlText: string, headers: Headers, secret: s
   const regionKey = await hmac(dateKey, region);
   const serviceKey = await hmac(regionKey, "s3");
   const signingKey = await hmac(serviceKey, "aws4_request");
-  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, `${dateStamp}/${region}/s3/aws4_request`, await digest(canonicalRequest)].join("\\n");
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, `${dateStamp}/${region}/s3/aws4_request`, await digest(canonicalRequest)].join("\n");
   return Array.from(await hmac(signingKey, stringToSign), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 \nfunction storageEnv(): Env {
