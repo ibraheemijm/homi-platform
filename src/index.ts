@@ -400,10 +400,12 @@ export default {
         inspectSigningKeyConfiguration(
           env.LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64,
           env.LICENSE_SIGNING_KEY_ID,
+          env.LICENSE_SIGNING_PUBLIC_KEY_DER_B64,
         ),
         inspectSigningKeyConfiguration(
           env.UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64,
           env.UPDATE_SIGNING_KEY_ID,
+          env.UPDATE_SIGNING_PUBLIC_KEY_DER_B64,
         ),
         inspectSigningKeyConfiguration(
           env.ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64,
