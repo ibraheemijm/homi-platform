@@ -207,6 +207,7 @@ function ReleaseUploader({ release, onDone, onError }: {
               max={100}
               value={progressPercent}
               aria-label="نسبة رفع الحزمة"
+              aria-valuetext={`${progressPercent}% من حجم الملف`}
             />
           )}
         </div>
