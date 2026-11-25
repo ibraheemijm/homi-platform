@@ -99,6 +99,7 @@ function App() {
   const [selected, setSelected] = useState<ActivationRequest | null>(null);
   const [form, setForm] = useState<ApprovalForm>(initialApproval());
   const [saving, setSaving] = useState(false);
+  const [hreqFile, setHreqFile] = useState<File | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -191,6 +192,41 @@ function App() {
     }
   };
 
+  const uploadHreq = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!hreqFile) {
+      setError("اختر ملف طلب تفعيل بامتداد .hreq أولًا.");
+      return;
+    }
+    if (!hreqFile.name.toLowerCase().endsWith(".hreq") || hreqFile.size < 1 || hreqFile.size > 64 * 1024) {
+      setError("ملف الطلب يجب أن يكون .hreq وألا يتجاوز 64 كيلوبايت.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const data = new FormData();
+      data.append("file", hreqFile);
+      const response = await fetch(`${API_BASE}/api/v1/admin/activation-requests/import`, {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || `فشل استيراد الملف (HTTP ${response.status}).`);
+      }
+      setNotice(`تم استيراد ملف الطلب والتحقق من توقيع الجهاز. رقم الطلب: ${String(payload.activation_request_id)}`);
+      setHreqFile(null);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "تعذر استيراد ملف طلب التفعيل.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const updateForm = <K extends keyof ApprovalForm,>(key: K, value: ApprovalForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
@@ -231,6 +267,17 @@ function App() {
           <div className="panel-heading">
             <div><h2>طلبات التفعيل</h2><p>طلبات الأجهزة التي أرسلتها تطبيقات Homi</p></div>
             <div className="filters">
+              <form className="filters" onSubmit={uploadHreq}>
+                <input
+                  type="file"
+                  accept=".hreq,application/json"
+                  aria-label="ملف طلب التفعيل"
+                  onChange={(event) => setHreqFile(event.target.files?.[0] || null)}
+                />
+                <button className="button primary small" type="submit" disabled={saving || !hreqFile}>
+                  استيراد ملف .hreq
+                </button>
+              </form>
               <select value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="تصفية الحالة">
                 <option value="all">كل الحالات</option>
                 <option value="proof_verified">تم إثبات الجهاز</option>
