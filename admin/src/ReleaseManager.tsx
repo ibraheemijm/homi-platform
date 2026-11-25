@@ -43,6 +43,40 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+function uploadPartWithProgress(
+  url: string,
+  blob: Blob,
+  onProgress: (loadedBytes: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", url);
+    request.withCredentials = true;
+    request.timeout = 180000;
+    request.setRequestHeader("content-type", "application/octet-stream");
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded);
+    };
+    request.onload = () => {
+      let payload: { error?: { message?: string } } | null = null;
+      try {
+        payload = JSON.parse(request.responseText) as { error?: { message?: string } };
+      } catch {
+        payload = null;
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(payload?.error?.message || `فشل رفع جزء الملف (HTTP ${request.status}).`));
+      }
+    };
+    request.onerror = () => reject(new Error("تعذر الاتصال بخادم رفع الحزم. تحقق من جلسة دخول الإدارة وإعدادات الاتصال."));
+    request.ontimeout = () => reject(new Error("انتهت مهلة رفع جزء الملف. أعد المحاولة بعد التحقق من الاتصال."));
+    request.onabort = () => reject(new Error("تم إيقاف رفع الملف قبل اكتماله."));
+    request.send(blob);
+  });
+}
+
 function channelName(channel: Release["channel"]): string {
   return channel === "stable" ? "مستقر" : channel === "beta" ? "تجريبي" : "داخلي";
 }
@@ -74,11 +108,13 @@ function ReleaseUploader({ release, onDone, onError }: {
   const [architecture, setArchitecture] = useState("universal");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
+  const [progressPercent, setProgressPercent] = useState<number | null>(null);
 
   const upload = async (file?: File) => {
     if (!file || busy) return;
     setBusy(true);
     setProgress("جارٍ حساب بصمة الملف...");
+    setProgressPercent(null);
     try {
       if (file.size < 1 || file.size > 1024 * 1024 * 1024) {
         throw new Error("حجم الحزمة يجب أن يكون أقل من 1 جيجابايت.");
@@ -103,32 +139,36 @@ function ReleaseUploader({ release, onDone, onError }: {
       );
       const chunkSize = started.chunk_size_bytes || CHUNK_SIZE;
       const partCount = Math.ceil(file.size / chunkSize);
+      let uploadedBytes = 0;
+      setProgressPercent(0);
       for (let partNumber = 1; partNumber <= partCount; partNumber++) {
         const start = (partNumber - 1) * chunkSize;
         const end = Math.min(start + chunkSize, file.size);
-        setProgress(`رفع الجزء ${partNumber} من ${partCount}...`);
-        const response = await fetch(
+        setProgress(`جارٍ رفع الجزء ${partNumber} من ${partCount}...`);
+        await uploadPartWithProgress(
           `${API_BASE}/api/v1/admin/release-uploads/${started.upload_session_id}/parts/${partNumber}`,
-          {
-            method: "PUT",
-            credentials: "include",
-            headers: { "content-type": "application/octet-stream" },
-            body: file.slice(start, end),
+          file.slice(start, end),
+          (loadedBytes) => {
+            const totalUploaded = Math.min(file.size, uploadedBytes + loadedBytes);
+            const percent = Math.floor((totalUploaded / file.size) * 100);
+            setProgressPercent(percent);
           },
         );
-        const result = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(result?.error?.message || `فشل رفع الجزء ${partNumber}.`);
+        uploadedBytes = end;
+        setProgressPercent(Math.floor((uploadedBytes / file.size) * 100));
       }
-      setProgress("جارٍ إكمال الملف وتوقيع بياناته...");
+      setProgress("جارٍ إكمال الملف والتحقق من سلامته...");
       await api(`/admin/release-uploads/${started.upload_session_id}/complete`, {
         method: "POST",
         body: "{}",
       });
-      setProgress("اكتمل رفع الحزمة.");
+      setProgressPercent(100);
+      setProgress("اكتمل رفع الحزمة والتحقق من حجمها.");
       onDone();
     } catch (error) {
       const message = error instanceof Error ? error.message : "تعذر رفع الحزمة.";
       setProgress("");
+      setProgressPercent(null);
       onError(message);
     } finally {
       setBusy(false);
@@ -153,7 +193,22 @@ function ReleaseUploader({ release, onDone, onError }: {
           event.currentTarget.value = "";
         }} />
       </label>
-      {progress && <small className="upload-progress" role="status">{progress}</small>}
+      {progress && (
+        <div className="upload-progress" role="status">
+          <div className="upload-progress-label">
+            <span>{progress}</span>
+            {progressPercent !== null && <strong>{progressPercent}%</strong>}
+          </div>
+          {progressPercent !== null && (
+            <progress
+              className="upload-progress-bar"
+              max={100}
+              value={progressPercent}
+              aria-label="نسبة رفع الحزمة"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
