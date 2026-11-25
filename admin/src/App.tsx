@@ -100,6 +100,7 @@ function App() {
   const [form, setForm] = useState<ApprovalForm>(initialApproval());
   const [saving, setSaving] = useState(false);
   const [hreqFile, setHreqFile] = useState<File | null>(null);
+  const [licenseDownload, setLicenseDownload] = useState<{ url: string; fileName: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -197,15 +198,11 @@ function App() {
       const blob = new Blob([JSON.stringify(licenseFile, null, 2)], {
         type: "application/vnd.homi.license+json",
       });
+      if (licenseDownload) URL.revokeObjectURL(licenseDownload.url);
       const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = `Homi-License-${licenseFile.license_id}.hlic`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
-      setNotice(`تم إصدار ملف الترخيص وتنزيله. رقم الترخيص: ${licenseFile.license_id}`);
+      const fileName = `Homi-License-${licenseFile.license_id}.hlic`;
+      setLicenseDownload({ url: objectUrl, fileName });
+      setNotice(`تم إصدار ملف الترخيص بنجاح. رقم الترخيص: ${licenseFile.license_id}`);
       setSelected(null);
       await load();
     } catch (cause) {
@@ -277,7 +274,21 @@ function App() {
         </header>
 
         {error && <div className="alert error" role="alert">{error}</div>}
-        {notice && <div className="alert success" role="status">{notice}</div>}
+        {notice && (
+          <div className="alert success" role="status">
+            {notice}
+            {licenseDownload && (
+              <a
+                className="button primary small"
+                href={licenseDownload.url}
+                download={licenseDownload.fileName}
+                onClick={() => window.setTimeout(() => URL.revokeObjectURL(licenseDownload.url), 5000)}
+              >
+                تنزيل ملف التفعيل .hlic
+              </a>
+            )}
+          </div>
+        )}
 
         <section className="stat-grid">
           <article className="stat-card"><span>الطلبات المعروضة</span><strong>{counts.total}</strong><small>حسب عامل التصفية الحالي</small></article>
