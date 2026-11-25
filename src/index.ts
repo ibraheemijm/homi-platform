@@ -24,12 +24,48 @@ function json(data: unknown, status = 200, headers: HeadersInit = {}): Response 
   });
 }
 
+function isPagesPreviewOrigin(
+  origin: string,
+  projectHost: string,
+  stableHost: string,
+): boolean {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "https:" || url.origin !== origin ||
+        url.username || url.password || url.pathname !== "/" ||
+        url.search || url.hash) return false;
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === stableHost) return true;
+    const suffix = "." + projectHost;
+    if (!hostname.endsWith(suffix)) return false;
+    const deploymentLabel = hostname.slice(0, -suffix.length);
+    // Cloudflare Pages deploy previews use one hostname label before the project domain.
+    return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(deploymentLabel);
+  } catch {
+    return false;
+  }
+}
+
 function corsHeaders(request: Request, env: Env): HeadersInit {
   const origin = request.headers.get("Origin");
   const allowedOrigins = [env.PUBLIC_SITE_ORIGIN, env.ADMIN_SITE_ORIGIN].filter(
     (value): value is string => typeof value === "string" && value.length > 0,
   );
-  const allowed = origin && allowedOrigins.includes(origin) ? origin : "";
+  const isAllowedPreviewOrigin = origin !== null && (
+    isPagesPreviewOrigin(
+      origin,
+      "homi-public-preview.pages.dev",
+      "foundation-public-site-v1.homi-public-preview.pages.dev",
+    ) ||
+    isPagesPreviewOrigin(
+      origin,
+      "homi-admin-console-preview.pages.dev",
+      "foundation-platform-api-v1.homi-admin-console-preview.pages.dev",
+    )
+  );
+  const allowed = origin && (allowedOrigins.includes(origin) || isAllowedPreviewOrigin)
+    ? origin
+    : "";
   return {
     "access-control-allow-origin": allowed,
     "access-control-allow-credentials": "true",
