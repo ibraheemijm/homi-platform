@@ -198,8 +198,17 @@ export async function approveActivationRequest(
       key_id: env.LICENSE_SIGNING_KEY_ID,
     })));
     payloadBytes = new TextEncoder().encode(JSON.stringify({ ...claims, key_id: signed.keyId }));
-  } catch {
-    return fail("LICENSE_SIGNING_UNAVAILABLE", "خدمة إصدار التراخيص غير مهيأة؛ لم يتم تسجيل الموافقة أو الدفع.", 503);
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : "";
+    if (reason === "Signing key is not configured.") {
+      return fail("LICENSE_SIGNING_KEY_MISSING", "مفتاح توقيع التراخيص الخاص غير مضبوط في بيئة Preview؛ لم يتم تسجيل الموافقة أو الدفع.", 503);
+    }
+    if (reason === "Signing key encoding is invalid." ||
+        reason.includes("Ed25519") ||
+        reason.includes("importKey")) {
+      return fail("LICENSE_SIGNING_KEY_INVALID", "مفتاح توقيع التراخيص غير صالح أو ليس بصيغة PKCS#8 Ed25519؛ لم يتم تسجيل الموافقة أو الدفع.", 503);
+    }
+    return fail("LICENSE_SIGNING_UNAVAILABLE", "تعذر تشغيل خدمة توقيع التراخيص؛ لم يتم تسجيل الموافقة أو الدفع.", 503);
   }
 
   const payloadB64 = encodePayloadBase64(payloadBytes);
