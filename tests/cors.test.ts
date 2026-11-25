@@ -20,7 +20,7 @@ describe("Homi Platform CORS policy", () => {
   } as unknown as Env;
 
   it("allows the configured admin origin to preflight PATCH requests", async () => {
-    const origin = env.ADMIN_SITE_ORIGIN;
+    const origin = "https://foundation-platform-api-v1.homi-admin-console-preview.pages.dev";
     const request = new Request("https://api.homi.example/api/v1/admin/customers/customer-id", {
       method: "OPTIONS",
       headers: {
