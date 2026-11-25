@@ -42,7 +42,7 @@ describe("Ed25519 license signer", () => {
 
   it("reports a valid Ed25519 PKCS#8 private key as ready", async () => {
     const pair = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
-    const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
+    const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8" as const, pair.privateKey) as ArrayBuffer);
     expect(await inspectSigningKeyConfiguration(base64(privateDer), "test-key-v1")).toBe("ready");
   });
 
