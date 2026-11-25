@@ -203,6 +203,9 @@ export async function approveActivationRequest(
     if (reason === "Signing key is not configured.") {
       return fail("LICENSE_SIGNING_KEY_MISSING", "مفتاح توقيع التراخيص الخاص غير مضبوط في بيئة Preview؛ لم يتم تسجيل الموافقة أو الدفع.", 503);
     }
+    if (reason === "Signing private key does not match configured public key.") {
+      return fail("LICENSE_SIGNING_KEY_MISMATCH", "مفتاح التوقيع الخاص لا يطابق مفتاح التحقق العام المسجل؛ لم يتم تسجيل الموافقة أو الدفع.", 503);
+    }
     if (reason === "Signing key encoding is invalid." ||
         reason.includes("Ed25519") ||
         reason.includes("importKey")) {
