@@ -74,6 +74,7 @@ npm run dev
 
 - `PUBLIC_SITE_ORIGIN`: أصل الموقع العام.
 - `ADMIN_SITE_ORIGIN`: أصل لوحة الإدارة.
+- `ONLINE_ACTIVATION_ENABLED`: مفتاح اختياري لمسارات التفعيل الشبكي؛ غير مضبوط/`false` افتراضيًا، ولا يُضبط `true` إلا بعد موافقة ومراجعة مستقلة.
 - `CF_ACCESS_TEAM_DOMAIN` و`CF_ACCESS_AUD`: التحقق من Cloudflare Access.
 - `LICENSE_SIGNING_KEY_ID`: معرف مفتاح Ed25519 العام.
 - `LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64`: Worker Secret فقط.
