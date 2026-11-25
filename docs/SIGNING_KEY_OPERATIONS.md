@@ -57,6 +57,37 @@ wrangler secret put UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64 < update-private.pkcs8.
 - `SIGNING_KEYSET_VERSION` (ابدأ بـ `1`)
 - `SIGNING_KEYSET_ADDITIONAL_KEYS_JSON` (ابدأ بـ `[]`)
 
+## إعداد بيئة Pages Functions الحالية
+
+واجهة API المنشورة حاليًا تعمل ضمن Cloudflare Pages Functions في المشروع
+`homi-platform-api-test`، وليست Worker مستقلًا باسم `homi-platform-preview`.
+لذلك يجب إضافة الأسرار إلى **Pages project → Settings → Environment variables →
+Preview** مع اختيار نوع **Secret**، وليس الاكتفاء بأمر `wrangler secret put`
+الخاص بموارد Workers.
+
+أضف المفاتيح الخاصة التالية كأسرار في Preview فقط:
+
+- `ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64`
+- `LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64`
+- `UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64`
+
+وأضف المعرفات والمفاتيح العامة كمتغيرات نصية عادية:
+
+- `ROOT_SIGNING_KEY_ID`
+- `LICENSE_SIGNING_KEY_ID`
+- `LICENSE_SIGNING_PUBLIC_KEY_DER_B64`
+- `UPDATE_SIGNING_KEY_ID`
+- `UPDATE_SIGNING_PUBLIC_KEY_DER_B64`
+- `SIGNING_KEYSET_VERSION`
+- `SIGNING_KEYSET_ADDITIONAL_KEYS_JSON`
+
+بعد الحفظ، تحقق من حالة المفاتيح عبر المسار الإداري المحمي:
+`GET /api/v1/admin/system/signing-status`.
+يجب أن تكون حالات `license_signing` و`update_signing` و`root_signing`
+هي `ready`. يعرض الفحص حالة الجاهزية فقط ولا يعرض أي قيمة سرية.
+
+لا تنسخ أي مفتاح خاص إلى GitHub أو ملفات Flutter أو ملفات إعداد العميل.
+
 ## إعداد بناء Grocery
 
 - `HOMI_PLATFORM_ROOT_KEY_ID`: نفس معرف الجذر.
