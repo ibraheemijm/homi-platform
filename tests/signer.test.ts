@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../src/types";
-import { signLicensePayload } from "../src/licensing/signer";
+import { inspectSigningKeyConfiguration, signLicensePayload } from "../src/licensing/signer";
 import { createSignedSigningKeyset } from "../src/licensing/keyset";
 
 function base64(bytes: Uint8Array): string {
@@ -32,6 +32,18 @@ describe("Ed25519 license signer", () => {
 
     expect(signed.keyId).toBe("test-key-v1");
     expect(valid).toBe(true);
+  });
+
+  it("reports missing and invalid signing keys without exposing key material", async () => {
+    expect(await inspectSigningKeyConfiguration(undefined, "key-v1")).toBe("missing");
+    expect(await inspectSigningKeyConfiguration("not-base64", "key-v1")).toBe("invalid");
+    expect(await inspectSigningKeyConfiguration("AQID", "")).toBe("missing");
+  });
+
+  it("reports a valid Ed25519 PKCS#8 private key as ready", async () => {
+    const pair = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
+    const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
+    expect(await inspectSigningKeyConfiguration(base64(privateDer), "test-key-v1")).toBe("ready");
   });
 
   it("refuses to sign when the private key is missing", async () => {
