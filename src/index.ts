@@ -506,6 +506,15 @@ export default {
       return json({ payment_submission_id: submissionId, status: newStatus }, 200, headers);
     }
 
+    if (request.method === "POST" && path === "/admin/activation-requests/import") {
+      const auth = await authenticateAdmin(request, env, ["activation_requests.review"]);
+      if (auth.response) return withHeaders(auth.response, headers);
+      if (!(await rateLimit(request, env, "admin-hreq-import", 20))) {
+        return error("RATE_LIMITED", "تم تجاوز عدد مرات استيراد ملفات الطلب مؤقتًا.", 429, headers);
+      }
+      return withHeaders(await importHreq(request, env), headers);
+    }
+
     if (request.method === "GET" && path === "/admin/activation-requests") {
       const auth = await authenticateAdmin(request, env, ["activation_requests.read"]);
       if (auth.response) return withHeaders(auth.response, headers);
