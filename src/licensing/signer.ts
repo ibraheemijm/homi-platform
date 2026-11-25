@@ -14,12 +14,13 @@ function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export type SigningKeyHealth = "ready" | "missing" | "invalid";
+export type SigningKeyHealth = "ready" | "missing" | "invalid" | "mismatch";
 
 /** يفحص جاهزية المفتاح دون إظهار قيمته أو تنفيذ عملية إصدار فعلية. */
 export async function inspectSigningKeyConfiguration(
   encodedKey: string | undefined,
   keyIdValue: string | undefined,
+  publicKeyDerValue?: string,
 ): Promise<SigningKeyHealth> {
   const encoded = encodedKey?.trim();
   const keyId = keyIdValue?.trim();
@@ -32,7 +33,19 @@ export async function inspectSigningKeyConfiguration(
     );
     const probe = new TextEncoder().encode("HOMI_SIGNING_KEY_SELF_TEST_V1");
     const signature = await crypto.subtle.sign("Ed25519", privateKey, probe);
-    return signature.byteLength === 64 ? "ready" : "invalid";
+    if (signature.byteLength !== 64) return "invalid";
+    if (publicKeyDerValue) {
+      const publicKey = await crypto.subtle.importKey(
+        "spki",
+        decodePublicKeyDer(publicKeyDerValue),
+        { name: "Ed25519" },
+        false,
+        ["verify"],
+      );
+      const matches = await crypto.subtle.verify("Ed25519", publicKey, signature, probe);
+      if (!matches) return "mismatch";
+    }
+    return "ready";
   } catch {
     return "invalid";
   }
@@ -56,14 +69,41 @@ async function signWithKey(
   return { keyId, signatureB64: encodeBase64(signature) };
 }
 
+async function signWithConfiguredPair(
+  encodedPrivateKey: string | undefined,
+  keyId: string | undefined,
+  encodedPublicKey: string | undefined,
+  payload: Uint8Array,
+): Promise<{ keyId: string; signatureB64: string }> {
+  const signed = await signWithKey(encodedPrivateKey, keyId, payload);
+  const publicKey = await crypto.subtle.importKey(
+    "spki",
+    decodePublicKeyDer(encodedPublicKey),
+    { name: "Ed25519" },
+    false,
+    ["verify"],
+  );
+  const valid = await crypto.subtle.verify(
+    "Ed25519",
+    publicKey,
+    decodeBase64(signed.signatureB64),
+    payload,
+  );
+  if (!valid) {
+    throw new Error("Signing private key does not match configured public key.");
+  }
+  return signed;
+}
+
 /** المفتاح الخاص يمرر كـ Worker Secret بصيغة Base64 PKCS#8 ولا يرفع إلى Git. */
 export async function signLicensePayload(
   env: Env,
   payload: Uint8Array,
 ): Promise<{ keyId: string; signatureB64: string }> {
-  return signWithKey(
+  return signWithConfiguredPair(
     env.LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64,
     env.LICENSE_SIGNING_KEY_ID,
+    env.LICENSE_SIGNING_PUBLIC_KEY_DER_B64,
     payload,
   );
 }
@@ -73,9 +113,10 @@ export async function signUpdatePayload(
   env: Env,
   payload: Uint8Array,
 ): Promise<{ keyId: string; signatureB64: string }> {
-  return signWithKey(
+  return signWithConfiguredPair(
     env.UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64,
     env.UPDATE_SIGNING_KEY_ID,
+    env.UPDATE_SIGNING_PUBLIC_KEY_DER_B64,
     payload,
   );
 }
