@@ -4,11 +4,11 @@
 
 ## 1. المبادئ
 
-- استخدام Cloudflare لـWorkers وD1 وAccess، مع Backblaze B2 كمخزن كائنات خاص عبر S3-compatible API لتجنب اشتراط وسيلة دفع في R2.
+- استخدام Cloudflare Pages Functions (Workers runtime) وD1 وAccess، مع Backblaze B2 كمخزن كائنات خاص عبر S3-compatible API وفق قرار الاعتماد السابق.
 - لا Neon أو Firebase أو Supabase.
 - فصل بيئات Local وPreview وProduction؛ لا تشترك في قاعدة D1 أو Bucket B2.
 - لا حسابات عملاء ولا بريد أو OTP في تدفق تفعيل Grocery.
-- لا مفاتيح خاصة في GitHub أو داخل التطبيق أو الموقع. تحفظ مفاتيح التوقيع في Worker Secrets.
+- لا مفاتيح خاصة في GitHub أو داخل التطبيق أو الموقع. تحفظ مفاتيح التوقيع كـ Secret Text في إعدادات Pages Preview الخاصة بمشروع API.
 - لا نشر إنتاجي قبل اختبار Preview، ومراجعة migration والنسخ الاحتياطي.
 
 ## 2. الموارد المطلوبة عند الاعتماد
@@ -36,7 +36,7 @@
 
 ## 4. Backblaze B2
 
-يستخدم Worker واجهة S3-compatible مباشرة عبر AWS Signature Version 4. لا يوجد R2 binding أو اتصال مباشر من تطبيق العميل. احتُفظ مؤقتًا باسم العمود التاريخي `r2_object_key` في D1 دون تغيير بنيته؛ القيم الجديدة تشير إلى مفاتيح كائنات B2، ولا يلزم ترحيل بيانات لهذا التبديل.
+تستخدم API المنشورة عبر Cloudflare Pages Functions واجهة S3-compatible مباشرة عبر AWS Signature Version 4. لا يوجد R2 binding أو اتصال مباشر من تطبيق العميل. احتُفظ مؤقتًا باسم العمود التاريخي `r2_object_key` في D1 دون تغيير بنيته؛ القيم الجديدة تشير إلى مفاتيح كائنات B2، ولا يلزم ترحيل بيانات لهذا التبديل.
 
 متغيرات البيئة: `B2_ENDPOINT`, `B2_REGION`, `B2_BUCKET`.
 
@@ -49,7 +49,7 @@
 
 يظل المخزن خاصًا؛ لا تستخدم روابط عامة ثابتة أو تجعل الـBucket عامًا. يمر تنزيل الحزم المنشورة عبر Worker بعد التحقق من حالة الإصدار. لا ترفع ملفات عملاء حقيقية أثناء الاختبارات الأولية.
 
-## 5. متغيرات Worker
+## 5. متغيرات Pages Functions Preview
 
 تضبط لكل بيئة على حدة:
 - APP_ENV
@@ -68,9 +68,9 @@
 
 تعد مفاتيح التحقق العامة بيانات غير سرية، لكن يجب تثبيتها ومراجعة تدويرها قبل بناء العميل.
 
-## 6. Worker Secrets
+## 6. أسرار Pages Functions Preview
 
-تنشأ المفاتيح خارج GitHub، ثم تضاف مباشرة إلى بيئة Worker المقصودة:
+تنشأ المفاتيح خارج GitHub، ثم تضاف إلى Pages project homi-platform-api-test ضمن Settings → Environment variables → Preview، بنوع Secret Text. لا يكفي استخدام أمر أسرار Worker على مورد مختلف؛ فالكود الحالي يعمل داخل Pages Functions:
 - LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64
 - UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64
 - ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64
@@ -86,14 +86,14 @@
 
 ## 7. ربط الموقع والتطبيق
 
-- Homi Grocery: build define باسم HOMI_PLATFORM_BASE_URL.
+- Homi Grocery: build defines باسم HOMI_PLATFORM_BASE_URL وHOMI_WEBSITE_BASE_URL.
 - Homi Website: متغير بناء عام باسم PUBLIC_HOMI_API_BASE_URL.
 - Worker: PUBLIC_SITE_ORIGIN وADMIN_SITE_ORIGIN وSUPPORT_PHONE.
 - لا تضع أي secret في متغيرات بناء الموقع أو التطبيق؛ كل عناوين API والمفاتيح العامة فقط.
 
 ## 8. حماية لوحة الإدارة
 
-- تفعيل Cloudflare Access على نطاق Homi Admin ومسارات الإدارة في Worker.
+- تفعيل Cloudflare Access على نطاق Homi Admin ومسارات الإدارة في API. الموقع العام لا يطلب تسجيل دخول للعملاء؛ سياسة Access الخاصة بنطاق الموقع مضبوطة على bypass للجميع.
 - السماح للمشغلين المعتمدين فقط، ثم تطبيق D1 RBAC داخل Worker كطبقة صلاحيات ثانية.
 - لا تعتبر CORS حماية دخول.
 - لا تستخدم Access لتسجيل عملاء Grocery؛ تفعيل العملاء يبقى دون حساب.
@@ -135,17 +135,30 @@
 - أضيف مالك المنظومة بدور `owner` إلى قاعدة Preview.
 - ولدت مفاتيح Ed25519 منفصلة للتراخيص والتحديث وجذر الثقة، وخزنت المفاتيح الخاصة كـ `secret_text` في إعدادات API Preview، لا في Git.
 
-### ما لم يكتمل بعد
+### الحالة الحالية — 2026-11-25
 
-- لم يتم إنشاء Bucket Backblaze B2 أو Application Key بعد؛ يلزم إتمام إعداد حساب B2 وBucket الاختبار قبل اختبار التخزين.
-- Cloudflare Pages استقبل أحداث GitHub للفروع الثلاثة، لكن أحدث deployments بقيت في حالة `queued/idle` مع سجل `Starting build...` ولم تصل إلى مرحلة build أو deploy عند آخر تحقق.
-- لذلك لا توجد حتى الآن روابط Preview مؤكدة تعمل، ولا يجوز اعتبار API أو الموقع أو لوحة الإدارة منشورة.
-- Android workflow الذي يضم عنوان API ومفاتيح الثقة العامة قيد التنفيذ؛ لم يصدر APK جديد صالح للتجربة الحية بعد.
-- لا يوجد نشر Production، ولا تم تعديل أو حذف المشاريع القديمة `homi-platform-preview` أو `homi-website-preview` أو Worker `cvora`.
+#### الموارد والإعدادات
 
-### متابعة مطلوبة
+- D1 Preview: homi-platform-preview موجودة، والترحيلات 0001 إلى 0010 مطبقة.
+- Pages Preview projects: homi-platform-api-test وhomi-admin-console-preview وhomi-public-preview مرتبطة بفروع Preview المحددة؛ إعداد Production deployments معطل.
+- Backblaze B2: Bucket خاص homi-platform-preview-files في المنطقة us-east-005 مع التشفير مفعّل؛ متغيرات B2 الخمسة أضيفت إلى إعدادات API Preview.
+- Cloudflare Access: لوحة الإدارة ومسارات API الإدارية ما زالت مقصورة على المالك. نطاق الموقع العام يستخدم سياسة bypass حتى لا يطلب من العملاء تسجيل دخول أو OTP.
+- مفاتيح التوقيع الخاصة موجودة كمتغيرات Secret Text بالاسم في إعدادات Pages Preview؛ قيمها لا تُقرأ من API. أضيف endpoint إداري لفحص وجود المفاتيح وصحتها وتطابق المفتاح الخاص مع العام دون إظهار أي سر.
 
-1. إنشاء Bucket خاص في Backblaze B2 ومفتاح تطبيق محدود، ثم ضبط متغيرات B2 وأسرارها في API Preview.
-2. تشخيص توقف Pages builds في قائمة Deployments؛ لا تعاد محاولة النشر إلى Production.
-3. بعد نجاح Preview deployments، اختبار `/api/v1/signing-keyset` وطلب تسجيل التجربة ثم HREQ والدفع اليدوي وإصدار HLIC.
-4. إعادة بناء Android RC بعد اعتماد عنوان API النهائي، ثم اختبار التفعيل الفعلي على جهاز المستخدم.
+#### آخر نتائج النشر والاختبار
+
+- API Preview: نشر ناجح للـcommit 6a1deba3aaf84d7a3c441043e8629b2de20ceda4، ويشمل CORS لعناوين Pages preview، وفحص جاهزية التوقيع، والتحقق من تطابق مفاتيح الترخيص.
+- Admin Console وPublic Website: أحدث deployments كانت في حالة queued/idle عند آخر فحص؛ لا تعتبر تعديلات الواجهة منشورة حتى تتحول إلى success.
+- HREQ: اختبار المستخدم أثبت أن الطلب يصل ويظهر في لوحة الإدارة، لكن المتصفح لم يستطع قراءة الاستجابة بسبب CORS؛ أضيفت معالجة استعادة رقم الطلب عند إعادة رفع الملف نفسه.
+- Release uploads: أضيف مؤشر تقدم حقيقي يعتمد على عدد البايتات المرفوعة، مع نسبة مئوية وشريط تقدم. لم يكتمل اختبار رفع multipart الحي إلى B2 بعد.
+- License issuance: فشل الاعتماد لم ينشئ ترخيصًا أو يسجل الموافقة/الدفع. أضيف فحص إداري لحالة مفاتيح التوقيع.
+- Homi Grocery: تحديثات واجهة طلب الاشتراك، التجربة، .hreq، زر الرجوع/الخروج، ورابط الموقع مضافة إلى فرع feature/manual-activation-no-account. Android RC الجديد برقم بناء 2 قيد CI؛ لم يصدر APK نهائي صالح للتجربة بعد.
+- لا يوجد نشر Production ولا دمج لأي PR. لم يتم تعديل Worker مشروع CVora.
+
+#### الخطوات المتبقية
+
+1. فحص /api/v1/admin/system/signing-status بحساب المالك، ثم معالجة أي مفتاح missing أو invalid أو mismatch من إعدادات Pages Preview دون مشاركة المفاتيح في المحادثة.
+2. انتظار نجاح أحدث deployments للوحة الإدارة والموقع العام.
+3. إكمال اختبار رفع حزمة فعلية multipart إلى B2 من لوحة الإدارة والتحقق من الملف بعد الرفع.
+4. إكمال CI لكل من Android وWindows وLinux، ثم اختبار رحلة .hreq و.hlic والتجربة والاشتراك على كل منصة بصورة مستقلة.
+5. إبقاء جميع التغييرات في Preview وPRs مفتوحة إلى حين مراجعة المستخدم؛ لا نشر Production أو دمج دون موافقته.
