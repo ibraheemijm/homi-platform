@@ -9,6 +9,7 @@ export interface Env {
   SUPPORT_PHONE: string;
   PUBLIC_SITE_ORIGIN: string;
   ADMIN_SITE_ORIGIN?: string;
+  ONLINE_ACTIVATION_ENABLED?: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
   LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?: string;
