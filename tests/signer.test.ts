@@ -20,6 +20,7 @@ describe("Ed25519 license signer", () => {
     const env = {
       LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64: base64(privateDer),
       LICENSE_SIGNING_KEY_ID: "test-key-v1",
+      LICENSE_SIGNING_PUBLIC_KEY_DER_B64: base64(new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey))),
     } as Env;
 
     const signed = await signLicensePayload(env, payload);
@@ -43,7 +44,11 @@ describe("Ed25519 license signer", () => {
   it("reports a valid Ed25519 PKCS#8 private key as ready", async () => {
     const pair = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
     const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8" as const, pair.privateKey) as ArrayBuffer);
-    expect(await inspectSigningKeyConfiguration(base64(privateDer), "test-key-v1")).toBe("ready");
+    const publicDer = new Uint8Array(await crypto.subtle.exportKey("spki" as const, pair.publicKey) as ArrayBuffer);
+    expect(await inspectSigningKeyConfiguration(base64(privateDer), "test-key-v1", base64(publicDer))).toBe("ready");
+    const otherPair = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
+    const otherPublicDer = new Uint8Array(await crypto.subtle.exportKey("spki" as const, otherPair.publicKey) as ArrayBuffer);
+    expect(await inspectSigningKeyConfiguration(base64(privateDer), "test-key-v1", base64(otherPublicDer))).toBe("mismatch");
   });
 
   it("refuses to sign when the private key is missing", async () => {
