@@ -15,7 +15,7 @@
 
 | المورد | الاسم المقترح | الاستخدام |
 |---|---|---|
-| Cloudflare Worker | homi-platform-api | API المركزي وإصدار التراخيص وإدارة الإصدارات |
+| Cloudflare Pages Functions project | homi-platform-api-test | API المركزي وإصدار التراخيص وإدارة الإصدارات في Preview |
 | D1 | homi-platform-preview | قاعدة اختبار Preview مستقلة |
 | D1 | homi-platform-production | قاعدة الإنتاج المستقلة |
 | Backblaze B2 | homi-platform-files-preview | ملفات HREQ وإثباتات الدفع وحزم الاختبار (Bucket خاص) |
@@ -47,7 +47,7 @@
 - payment-evidence/: إثباتات الدفع اليدوي.
 - releases/: حزم الإصدارات المنشورة.
 
-يظل المخزن خاصًا؛ لا تستخدم روابط عامة ثابتة أو تجعل الـBucket عامًا. يمر تنزيل الحزم المنشورة عبر Worker بعد التحقق من حالة الإصدار. لا ترفع ملفات عملاء حقيقية أثناء الاختبارات الأولية.
+يظل المخزن خاصًا؛ لا تستخدم روابط عامة ثابتة أو تجعل الـBucket عامًا. يمر تنزيل الحزم المنشورة عبر Pages Functions API بعد التحقق من حالة الإصدار. لا ترفع ملفات عملاء حقيقية أثناء الاختبارات الأولية.
 
 ## 5. متغيرات Pages Functions Preview
 
@@ -88,13 +88,13 @@
 
 - Homi Grocery: build defines باسم HOMI_PLATFORM_BASE_URL وHOMI_WEBSITE_BASE_URL.
 - Homi Website: متغير بناء عام باسم PUBLIC_HOMI_API_BASE_URL.
-- Worker: PUBLIC_SITE_ORIGIN وADMIN_SITE_ORIGIN وSUPPORT_PHONE.
+- Pages Functions API: PUBLIC_SITE_ORIGIN وADMIN_SITE_ORIGIN وSUPPORT_PHONE.
 - لا تضع أي secret في متغيرات بناء الموقع أو التطبيق؛ كل عناوين API والمفاتيح العامة فقط.
 
 ## 8. حماية لوحة الإدارة
 
 - تفعيل Cloudflare Access على نطاق Homi Admin ومسارات الإدارة في API. الموقع العام لا يطلب تسجيل دخول للعملاء؛ سياسة Access الخاصة بنطاق الموقع مضبوطة على bypass للجميع.
-- السماح للمشغلين المعتمدين فقط، ثم تطبيق D1 RBAC داخل Worker كطبقة صلاحيات ثانية.
+- السماح للمشغلين المعتمدين فقط، ثم تطبيق D1 RBAC داخل Pages Functions API كطبقة صلاحيات ثانية.
 - لا تعتبر CORS حماية دخول.
 - لا تستخدم Access لتسجيل عملاء Grocery؛ تفعيل العملاء يبقى دون حساب.
 
@@ -102,7 +102,7 @@
 
 1. تأكيد أسماء الموارد والبيئات والنطاقات المتاحة.
 2. إنشاء D1 وBucket Backblaze B2 خاص لبيئة Preview فقط.
-3. إعداد Worker Preview وBindings وAccess.
+3. إعداد Pages Functions API Preview وBindings وAccess.
 4. توليد مفاتيح Ed25519 خارج GitHub، ثم إدخال الأسرار في Preview.
 5. تطبيق migrations على D1 Preview والتحقق من الجداول.
 6. اختبار رحلة HREQ ثم إثبات الجهاز ثم الدفع اليدوي ثم إصدار HLIC واستيراده.
@@ -112,7 +112,7 @@
 
 ## 10. ما يحتاج قرارًا قبل التنفيذ
 
-- الافتراضي: استخدام workers.dev لبيئة Preview والإطلاق الأولي، وتأجيل شراء نطاق Homi إلى ما بعد تحقق عائد أو ظهور ضرورة تشغيلية واضحة.
+- الافتراضي: استخدام نطاقات pages.dev لبيئة Preview والإطلاق الأولي، وتأجيل شراء نطاق Homi إلى ما بعد تحقق عائد أو ظهور ضرورة تشغيلية واضحة.
 - اعتماد أسماء D1 وBuckets الخاصة في Backblaze B2.
 - اختيار مزود هوية Cloudflare Access للمشغلين الإداريين.
 - اعتماد خطة الاحتفاظ بملفات إثبات الدفع وحذفها بعد انتهاء الغرض منها.\n- ضبط أسرار Backblaze B2 في بيئة Preview بعد إنشاء Bucket ومفتاح تطبيق مخصصين.
