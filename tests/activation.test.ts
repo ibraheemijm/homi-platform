@@ -19,7 +19,7 @@ function testEnv(): Env {
 }
 
 describe("Homi Platform activation API routes", () => {
-  it("routes direct activation requests through the real worker and validates required fields", async () => {
+  it("defers direct activation requests while file-only activation is active", async () => {
     const response = await worker.fetch(
       new Request("https://api.homi.example/api/v1/public/activation-requests", {
         method: "POST",
@@ -29,9 +29,9 @@ describe("Homi Platform activation API routes", () => {
       testEnv(),
     );
 
-    expect(response.status).toBe(422);
+    expect(response.status).toBe(410);
     expect(await response.json()).toMatchObject({
-      error: { code: "INVALID_ACTIVATION_REQUEST" },
+      error: { code: "ONLINE_ACTIVATION_DEFERRED" },
     });
   });
 
@@ -45,9 +45,9 @@ describe("Homi Platform activation API routes", () => {
       testEnv(),
     );
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(410);
     expect(await response.json()).toMatchObject({
-      error: { code: "NOT_FOUND" },
+      error: { code: "ONLINE_ACTIVATION_DEFERRED" },
     });
   });
 
@@ -57,9 +57,9 @@ describe("Homi Platform activation API routes", () => {
       testEnv(),
     );
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(410);
     expect(await response.json()).toMatchObject({
-      error: { code: "NOT_FOUND" },
+      error: { code: "ONLINE_ACTIVATION_DEFERRED" },
     });
   });
 
