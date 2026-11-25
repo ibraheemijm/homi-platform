@@ -513,7 +513,19 @@ export default {
       if (!(await rateLimit(request, env, "admin-hreq-import", 20))) {
         return error("RATE_LIMITED", "تم تجاوز عدد مرات استيراد ملفات الطلب مؤقتًا.", 429, headers);
       }
-      return withHeaders(await importHreq(request, env), headers);
+      const imported = await importHreq(request, env);
+      if (imported.ok) {
+        const payload = await imported.clone().json().catch(() => null) as Record<string, unknown> | null;
+        if (typeof payload?.activation_request_id === "string" && payload.idempotent_replay !== true) {
+          const requestId = payload.activation_request_id;
+          await env.DB.prepare(
+            `INSERT INTO audit_logs
+             (id, actor_admin_id, action_key, entity_type, entity_id, request_id, created_at)
+             VALUES (?, ?, 'activation.import_hreq', 'activation_request', ?, ?, ?)`
+          ).bind(crypto.randomUUID(), auth.actor.id, requestId, requestId, new Date().toISOString()).run();
+        }
+      }
+      return withHeaders(imported, headers);
     }
 
     if (request.method === "GET" && path === "/admin/activation-requests") {
