@@ -182,7 +182,30 @@ function App() {
         `/admin/activation-requests/${selected.id}/approve`,
         { method: "POST", body: JSON.stringify(body) },
       );
-      setNotice(`تم إصدار الترخيص بنجاح. رقم الترخيص: ${String(result.license_file.license_id)}`);
+      const licenseFile = result.license_file;
+      if (
+        licenseFile.format !== "HOMI_LICENSE_FILE" ||
+        licenseFile.format_version !== 1 ||
+        typeof licenseFile.license_id !== "string" ||
+        typeof licenseFile.device_id !== "string" ||
+        typeof licenseFile.key_id !== "string" ||
+        typeof licenseFile.payload !== "string" ||
+        typeof licenseFile.signature !== "string"
+      ) {
+        throw new Error("استجابة إصدار الترخيص لا تحتوي ملف HLIC صالحًا.");
+      }
+      const blob = new Blob([JSON.stringify(licenseFile, null, 2)], {
+        type: "application/vnd.homi.license+json",
+      });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `Homi-License-${licenseFile.license_id}.hlic`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+      setNotice(`تم إصدار ملف الترخيص وتنزيله. رقم الترخيص: ${licenseFile.license_id}`);
       setSelected(null);
       await load();
     } catch (cause) {
