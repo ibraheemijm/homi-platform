@@ -166,7 +166,9 @@ function ReleaseUploader({ release, onDone, onError }: {
       setProgress("اكتمل رفع الحزمة والتحقق من حجمها.");
       onDone();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "تعذر رفع الحزمة.";
+      const message = error instanceof TypeError
+        ? "انقطع الاتصال بخدمة رفع الحزم. تحقق من جلسة دخول الإدارة ثم أعد المحاولة."
+        : error instanceof Error ? error.message : "تعذر رفع الحزمة.";
       setProgress("");
       setProgressPercent(null);
       onError(message);
