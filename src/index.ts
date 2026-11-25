@@ -374,6 +374,7 @@ export default {
     if (!url.pathname.startsWith(API_PREFIX)) return error("NOT_FOUND", "المسار غير موجود.", 404, headers);
 
     const path = url.pathname.slice(API_PREFIX.length);
+    const onlineActivationEnabled = env.ONLINE_ACTIVATION_ENABLED === "true";
 
     if (request.method === "GET" && path === "/signing-keyset") {
       try {
@@ -571,6 +572,7 @@ export default {
     }
 
     if (request.method === "POST" && path === "/public/trials/register") {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "التفعيل الحالي يتم عبر ملفات HREQ وHLIC فقط.", 410, headers);
       if (!(await rateLimit(request, env, "trial-register", 8))) {
         return error("RATE_LIMITED", "تم تجاوز عدد محاولات تسجيل التجربة مؤقتًا.", 429, headers);
       }
@@ -578,10 +580,12 @@ export default {
     }
 
     if (request.method === "POST" && path === "/public/activation-requests") {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "التفعيل الحالي يتم عبر ملفات HREQ وHLIC فقط.", 410, headers);
       return createActivation(request, env, headers);
     }
     const proofMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/proof$/);
     if (request.method === "POST" && proofMatch) {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "التفعيل الحالي يتم عبر ملفات HREQ وHLIC فقط.", 410, headers);
       return verifyActivationProof(request, env, proofMatch[1], headers);
     }
     if (request.method === "GET" && path === "/updates/check") {
@@ -770,6 +774,7 @@ export default {
 
     const paymentSubmissionMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/payment-submissions$/);
     if (request.method === "POST" && paymentSubmissionMatch) {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "إرسال إثبات الدفع عبر الموقع مؤجل؛ تتم مراجعة الدفع مباشرة من الإدارة.", 410, headers);
       if (!(await rateLimit(request, env, "payment-evidence", 5))) {
         return error("RATE_LIMITED", "تم تجاوز عدد مرات إرسال إثبات الدفع مؤقتًا.", 429, headers);
       }
@@ -778,11 +783,13 @@ export default {
 
     const statusMatch = path.match(/^\/public\/activation-requests\/([^/]+)\/status$/);
     if (request.method === "GET" && statusMatch) {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "متابعة الطلب تتم من لوحة الإدارة في المرحلة الحالية.", 410, headers);
       return activationStatus(env, statusMatch[1], headers);
     }
 
     const challengeMatch = path.match(/^\/public\/devices\/([^/]+)\/challenges$/);
     if (request.method === "POST" && challengeMatch) {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "تجديد الترخيص عبر الاتصال مؤجل؛ استورد ملف HLIC جديدًا.", 410, headers);
       if (!(await rateLimit(request, env, "device-challenge", 20))) {
         return error("RATE_LIMITED", "تم تجاوز عدد طلبات تجديد التصريح.", 429, headers);
       }
@@ -791,6 +798,7 @@ export default {
 
     const grantMatch = path.match(/^\/public\/licenses\/([^/]+)\/devices\/([^/]+)\/offline-grants$/);
     if (request.method === "POST" && grantMatch) {
+      if (!onlineActivationEnabled) return error("ONLINE_ACTIVATION_DEFERRED", "تجديد الترخيص عبر الاتصال مؤجل؛ استورد ملف HLIC جديدًا.", 410, headers);
       if (!(await rateLimit(request, env, "offline-grant", 20))) {
         return error("RATE_LIMITED", "تم تجاوز عدد محاولات تجديد التصريح.", 429, headers);
       }
