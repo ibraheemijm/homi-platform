@@ -16,11 +16,12 @@ describe("Ed25519 license signer", () => {
   it("signs the exact payload bytes with the configured key id", async () => {
     const pair = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]) as CryptoKeyPair;
     const privateDer = new Uint8Array(await crypto.subtle.exportKey("pkcs8" as const, pair.privateKey) as ArrayBuffer);
+    const publicDer = new Uint8Array(await crypto.subtle.exportKey("spki" as const, pair.publicKey) as ArrayBuffer);
     const payload = new TextEncoder().encode('{"schema_version":1,"license_id":"test"}');
     const env = {
       LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64: base64(privateDer),
       LICENSE_SIGNING_KEY_ID: "test-key-v1",
-      LICENSE_SIGNING_PUBLIC_KEY_DER_B64: base64(new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey))),
+      LICENSE_SIGNING_PUBLIC_KEY_DER_B64: base64(publicDer),
     } as Env;
 
     const signed = await signLicensePayload(env, payload);
