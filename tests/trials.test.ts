@@ -55,6 +55,7 @@ function testEnv() {
     DB: db, SUPPORT_PHONE: "+2490904697455",
     PUBLIC_SITE_ORIGIN: "https://homi.example",
     ADMIN_SITE_ORIGIN: "https://admin.homi.example",
+    ONLINE_ACTIVATION_ENABLED: "true",
   } as unknown as Env;
   return { env, getTrial: () => trial };
 }
