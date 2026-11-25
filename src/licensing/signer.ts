@@ -14,6 +14,30 @@ function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+export type SigningKeyHealth = "ready" | "missing" | "invalid";
+
+/** يفحص جاهزية المفتاح دون إظهار قيمته أو تنفيذ عملية إصدار فعلية. */
+export async function inspectSigningKeyConfiguration(
+  encodedKey: string | undefined,
+  keyIdValue: string | undefined,
+): Promise<SigningKeyHealth> {
+  const encoded = encodedKey?.trim();
+  const keyId = keyIdValue?.trim();
+  if (!encoded || !keyId || !/^[A-Za-z0-9._-]{1,64}$/.test(keyId)) {
+    return "missing";
+  }
+  try {
+    const privateKey = await crypto.subtle.importKey(
+      "pkcs8", decodeBase64(encoded), { name: "Ed25519" }, false, ["sign"],
+    );
+    const probe = new TextEncoder().encode("HOMI_SIGNING_KEY_SELF_TEST_V1");
+    const signature = await crypto.subtle.sign("Ed25519", privateKey, probe);
+    return signature.byteLength === 64 ? "ready" : "invalid";
+  } catch {
+    return "invalid";
+  }
+}
+
 async function signWithKey(
   encodedKey: string | undefined,
   keyIdValue: string | undefined,
