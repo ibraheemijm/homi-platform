@@ -63,9 +63,9 @@ describe("Homi Platform activation API routes", () => {
     });
   });
 
-  it("requires configured Backblaze storage before accepting an HREQ upload", async () => {
+  it("requires admin Access before accepting an HREQ upload", async () => {
     const response = await worker.fetch(
-      new Request("https://api.homi.example/api/v1/public/activation-requests/import", {
+      new Request("https://api.homi.example/api/v1/admin/activation-requests/import", {
         method: "POST",
         body: new FormData(),
       }),
@@ -74,7 +74,7 @@ describe("Homi Platform activation API routes", () => {
 
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
-      error: { code: "FILE_STORAGE_UNAVAILABLE" },
+      error: { code: "ADMIN_AUTH_NOT_CONFIGURED" },
     });
   });
 });
