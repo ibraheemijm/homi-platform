@@ -8,6 +8,8 @@ import { registerTrial } from "./activation/trials";
 import { submitPaymentEvidence } from "./payments/submissions";
 import { handleReleaseAdmin } from "./releases/admin";
 import { createSignedSigningKeyset } from "./licensing/keyset";
+import { inspectSigningKeyConfiguration } from "./licensing/signer";
+import { isStorageConfigured } from "./storage/backblaze";
 import { handleCustomerAdmin } from "./admin/customers";
 import { handleSubscriptionRenewal } from "./admin/renewals";
 
@@ -390,6 +392,32 @@ export default {
 
     const customerAdminResponse = await handleCustomerAdmin(request, env, path, url);
     if (customerAdminResponse) return withHeaders(customerAdminResponse, headers);
+
+    if (request.method === "GET" && path === "/admin/system/signing-status") {
+      const auth = await authenticateAdmin(request, env, ["licenses.issue"]);
+      if (auth.response) return withHeaders(auth.response, headers);
+      const [license, update, root] = await Promise.all([
+        inspectSigningKeyConfiguration(
+          env.LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64,
+          env.LICENSE_SIGNING_KEY_ID,
+        ),
+        inspectSigningKeyConfiguration(
+          env.UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64,
+          env.UPDATE_SIGNING_KEY_ID,
+        ),
+        inspectSigningKeyConfiguration(
+          env.ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64,
+          env.ROOT_SIGNING_KEY_ID,
+        ),
+      ]);
+      return json({
+        environment: env.APP_ENV,
+        license_signing: license,
+        update_signing: update,
+        root_signing: root,
+        file_storage_configuration: isStorageConfigured(env) ? "configured" : "missing",
+      }, 200, headers);
+    }
 
     if (request.method === "GET" && path === "/admin/me") {
       const auth = await authenticateAdmin(request, env);
