@@ -1,0 +1,42 @@
+name = "homi-platform-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-21"
+workers_dev = true
+
+[vars]
+APP_ENV = "development"
+ONLINE_ACTIVATION_ENABLED = "false"
+SUPPORT_PHONE = "+2490904697455"
+PUBLIC_SITE_ORIGIN = "http://localhost:4321"
+ADMIN_SITE_ORIGIN = "http://localhost:5173"
+
+# أنشئ D1 مستقلة لكل بيئة، ثم استبدل القيمة التالية بمعرف القاعدة الفعلي.
+# لا تستخدم قاعدة الإنتاج في التطوير المحلي.
+[[d1_databases]]
+binding = "DB"
+database_name = "homi-platform"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Backblaze B2 is accessed through its private S3-compatible API.
+# Configure B2_ENDPOINT, B2_REGION, and B2_BUCKET as environment variables.
+# Store B2_ACCESS_KEY_ID and B2_SECRET_ACCESS_KEY as secrets; never commit them.
+
+# بيئة اختبار فعلية مستقلة؛ لا تستخدم قاعدة الإنتاج.
+[env.preview]
+name = "homi-platform-api-preview"
+
+[env.preview.vars]
+APP_ENV = "preview"
+ONLINE_ACTIVATION_ENABLED = "false"
+SUPPORT_PHONE = "+2490904697455"
+PUBLIC_SITE_ORIGIN = "https://foundation-public-site-v1.homi-public-preview.pages.dev"
+ADMIN_SITE_ORIGIN = "https://foundation-platform-api-v1.homi-admin-console-preview.pages.dev"
+SIGNING_KEYSET_VERSION = "1"
+SIGNING_KEYSET_ADDITIONAL_KEYS_JSON = "[]"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "homi-platform-preview"
+database_id = "c9afd3d8-3490-4288-a178-c8ded7a851eb"
+migrations_dir = "migrations"

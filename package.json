@@ -1,0 +1,24 @@
+{
+  "name": "@homi/platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 migrations apply homi-platform --local",
+    "db:migrate:remote": "wrangler d1 migrations apply homi-platform --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261120.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.48.0"
+  },
+  "dependencies": {
+    "jose": "^6.1.0"
+  }
+}

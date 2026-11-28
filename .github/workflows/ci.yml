@@ -1,0 +1,25 @@
+name: Platform API CI
+
+on:
+  push:
+    branches: [main, "foundation/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run db:migrate:local
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm --prefix admin install
+      - run: npm --prefix admin run build

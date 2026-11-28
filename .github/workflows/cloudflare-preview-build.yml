@@ -1,0 +1,44 @@
+name: Cloudflare Preview Build
+
+on:
+  push:
+    branches: [foundation/platform-api-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install platform dependencies
+        run: npm install
+      - name: Build Worker bundle for Preview (no deployment)
+        run: npx wrangler deploy --env preview --dry-run --outdir=dist/worker-preview
+      - name: Install Admin dependencies
+        run: npm --prefix admin install
+      - name: Build Admin for Preview
+        env:
+          VITE_HOMI_API_BASE_URL: https://foundation-platform-api-v1.homi-platform-api-test.pages.dev
+        run: npm --prefix admin run build
+      - name: Upload Worker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: homi-preview-worker-bundle
+          path: dist/worker-preview/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Admin static site
+        uses: actions/upload-artifact@v4
+        with:
+          name: homi-admin-preview-site
+          path: admin/dist/
+          if-no-files-found: error
+          retention-days: 7

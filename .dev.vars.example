@@ -1,0 +1,18 @@
+# نسخ هذا الملف محليًا إلى .dev.vars، ولا ترفع الملف الناتج.
+APP_ENV=development
+SUPPORT_PHONE=+2490904697455
+PUBLIC_SITE_ORIGIN=http://localhost:4321
+# لا تضف مفتاح توقيع خاصًا إلى Git. استخدم wrangler secret محليًا/لكل بيئة بعد تجهيز المفتاح.
+
+# مفاتيح التوقيع التالية تُضاف محليًا أو كـ Worker Secrets فقط.
+# لا تملأ هذه القيم داخل المستودع العام.
+ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64=
+ROOT_SIGNING_KEY_ID=
+LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64=
+LICENSE_SIGNING_KEY_ID=
+LICENSE_SIGNING_PUBLIC_KEY_DER_B64=
+UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64=
+UPDATE_SIGNING_KEY_ID=
+UPDATE_SIGNING_PUBLIC_KEY_DER_B64=
+SIGNING_KEYSET_VERSION=1
+SIGNING_KEYSET_ADDITIONAL_KEYS_JSON=[]
