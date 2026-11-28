@@ -418,6 +418,15 @@ export default {
         license_signing: license,
         update_signing: update,
         root_signing: root,
+        // مؤشرات وجود فقط لتحديد مشكلة ربط أسرار Pages دون كشف أي قيمة سرية.
+        signing_bindings: {
+          license_private_key_present: Boolean(env.LICENSE_SIGNING_PRIVATE_KEY_PKCS8_B64?.trim()),
+          license_key_id_present: Boolean(env.LICENSE_SIGNING_KEY_ID?.trim()),
+          update_private_key_present: Boolean(env.UPDATE_SIGNING_PRIVATE_KEY_PKCS8_B64?.trim()),
+          update_key_id_present: Boolean(env.UPDATE_SIGNING_KEY_ID?.trim()),
+          root_private_key_present: Boolean(env.ROOT_SIGNING_PRIVATE_KEY_PKCS8_B64?.trim()),
+          root_key_id_present: Boolean(env.ROOT_SIGNING_KEY_ID?.trim()),
+        },
         file_storage_configuration: isStorageConfigured(env) ? "configured" : "missing",
       }, 200, headers);
     }
